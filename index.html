@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V6.1</title>
+<title>AI Trading Cockpit V7</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -34,7 +34,7 @@ body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSy
 .metric .l{font-size:10px;color:#9fb0c8}.metric .v{font-weight:900;font-size:12px;margin-top:3px;word-break:break-word}
 .note{font-size:12px;line-height:1.35;color:#dbeafe;margin-top:10px}.warn{font-size:12px;line-height:1.35;color:#fbbf24;margin-top:8px}
 .nav{position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.84);border-top:1px solid rgba(255,255,255,.1);backdrop-filter:blur(16px);z-index:10}
-.navin{max-width:1050px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px}
+.navin{max-width:1300px;margin:0 auto;display:grid;grid-template-columns:repeat(8,1fr);gap:8px;padding:10px}
 .nav button{border:0;border-radius:17px;padding:12px 6px;background:transparent;color:#9fb0c8;font-weight:900;cursor:pointer}.nav button.active{background:white;color:#05070a}
 .hidden{display:none!important}
 input,select{width:100%;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.23);color:#fff;border-radius:14px;padding:12px;margin:5px 0 9px}
@@ -54,23 +54,36 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 .chartWrap{height:520px;border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#0b1220}
 .chartControls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .chartControls button{width:auto;margin:0;padding:9px 12px;border-radius:999px}
-@media (max-width:800px){.app{max-width:450px;padding:18px 14px 96px}.layout{display:block}.side{position:static;margin-bottom:13px}.stockGrid,.portfolioGrid,.alertList{grid-template-columns:1fr}.title{font-size:25px}.chartWrap{height:460px}.navin{grid-template-columns:repeat(5,1fr);gap:4px}.nav button{font-size:11px;padding:10px 2px}}
+@media (max-width:800px){.app{max-width:450px;padding:18px 14px 96px}.layout{display:block}.side{position:static;margin-bottom:13px}.stockGrid,.portfolioGrid,.alertList{grid-template-columns:1fr}.title{font-size:25px}.chartWrap{height:460px}.navin{grid-template-columns:repeat(8,1fr);gap:4px}.nav button{font-size:11px;padding:10px 2px}}
+
+.heatmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.tile{border-radius:18px;padding:13px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)}
+.tile .sym{font-size:18px;font-weight:1000}.tile .chg{font-size:15px;font-weight:900;margin-top:5px}
+.tilePos{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.25)}
+.tileNeg{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.25)}
+.tileNeu{background:rgba(255,255,255,.06)}
+.copilotBox{white-space:pre-wrap;font-size:13px;line-height:1.45;color:#dbeafe}
+.journalGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V6.1</div><div class="title">Trading Scanner</div></div>
+  <div><div class="small">AI Trading Cockpit V7</div><div class="title">Trading Scanner</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
 <section id="daytrading" class="hidden"></section>
 <section id="charts" class="hidden"></section>
+<section id="heatmap" class="hidden"></section>
 <section id="portfolio" class="hidden"></section>
+<section id="copilot" class="hidden"></section>
+<section id="journal" class="hidden"></section>
 <section id="alerts" class="hidden"></section>
 </div>
 <nav class="nav"><div class="navin">
-<button class="active" onclick="show('scanner',this)">Scanner</button><button onclick="show('daytrading',this)">Day</button><button onclick="show('charts',this)">Graph</button><button onclick="show('portfolio',this)">Portfolio</button><button onclick="show('alerts',this)">Alertes</button>
+<button class="active" onclick="show('scanner',this)">Scanner</button><button onclick="show('daytrading',this)">Day</button><button onclick="show('charts',this)">Graph</button><button onclick="show('heatmap',this)">Heat</button><button onclick="show('portfolio',this)">Portfolio</button><button onclick="show('copilot',this)">IA</button><button onclick="show('journal',this)">Journal</button><button onclick="show('alerts',this)">Alertes</button>
 </div></nav>
 <script>
 const DEFAULT_WATCHLIST=[{symbol:"NVDA",label:"Nvidia",sector:"AI / Semi-conducteurs"},{symbol:"AMD",label:"AMD",sector:"Semi-conducteurs"},{symbol:"MU",label:"Micron",sector:"Mémoire / Semi-conducteurs"},{symbol:"QCOM",label:"Qualcomm",sector:"Semi-conducteurs"},{symbol:"AVGO",label:"Broadcom",sector:"AI / Semi-conducteurs"},{symbol:"PLTR",label:"Palantir",sector:"AI Software"},{symbol:"MSFT",label:"Microsoft",sector:"Cloud / AI"},{symbol:"ADBE",label:"Adobe",sector:"Software"},{symbol:"YETI",label:"Yeti",sector:"Consumer"},{symbol:"RACE",label:"Ferrari US ADR",sector:"Luxe / Auto"},{symbol:"STLA",label:"Stellantis",sector:"Auto"},{symbol:"XAG/USD",label:"Silver spot",sector:"Métaux précieux"},{symbol:"QQQ",label:"Nasdaq ETF",sector:"Indice / Tech"},{symbol:"SPY",label:"S&P 500 ETF",sector:"Indice US"},{symbol:"META",label:"Meta",sector:"AI / Social"},{symbol:"AMZN",label:"Amazon",sector:"Cloud / Consumer"},{symbol:"TSLA",label:"Tesla",sector:"EV / Tech"},{symbol:"AAPL",label:"Apple",sector:"Consumer Tech"},{symbol:"GOOGL",label:"Alphabet",sector:"AI / Search"}];
@@ -117,10 +130,73 @@ function renderDay(){const list=rankLoaded().filter(x=>x.t.dayScore>=55||["Day t
 function renderCharts(){const buttons=watchlist.map(w=>`<button class="secondary" onclick="selectChart('${w.symbol}')">${w.symbol}</button>`).join("");document.getElementById("charts").innerHTML=`<div class="card ai"><b>Graphique intégré</b><div class="note">TradingView pour confirmer visuellement supports, résistances, cassures et tendance.</div></div><div class="chartControls">${buttons}</div><div class="chartWrap" id="tvchart"></div>`;loadTradingView(selectedChart)}
 function selectChart(s){selectedChart=s;localStorage.setItem("selectedChart_v6",s);loadTradingView(s)}function openChart(s){selectedChart=s;localStorage.setItem("selectedChart_v6",s);document.querySelectorAll(".nav button")[2].click()}
 function loadTradingView(sym){const box=document.getElementById("tvchart");if(!box)return;box.innerHTML="";const s=document.createElement("script");s.src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";s.async=true;s.innerHTML=JSON.stringify({autosize:true,symbol:tvSymbol(sym),interval:"15",timezone:"Europe/Zurich",theme:"dark",style:"1",locale:"fr",enable_publishing:false,allow_symbol_change:true,studies:["RSI@tv-basicstudies","MASimple@tv-basicstudies","MACD@tv-basicstudies"],support_host:"https://www.tradingview.com"});box.appendChild(s)}
-function renderPortfolio(){document.getElementById("portfolio").innerHTML=`<div class="card ai"><b>Portefeuille</b><div class="note">Version portefeuille inchangée. On le complètera après correction live.</div></div>`}
+
+function portfolioSummary(){
+ let total=0,pnl=0,has=0,risk=0;
+ portfolio.forEach(p=>{const t=technical(p.symbol),cur=t?.c,buy=num(p.buy),qty=num(p.qty);if(cur&&buy&&qty){total+=cur*qty;pnl+=(cur-buy)*qty;has++; const stop=num(p.stop); if(stop)risk+=Math.max(0,(cur-stop)*qty)}})
+ if(!has)return"Complète tes PRU et quantités pour obtenir le P/L global.";
+ return `Valeur suivie: ${fmt(total)} · P/L estimé: ${(pnl>=0?"+":"")+pnl.toFixed(0)} · Risque jusqu’aux stops: ${risk?fmt(risk):"-"}.`;
+}
+function positionAdvice(p,t){
+ const cur=t.c, stop=num(p.stop), target=num(p.target), buy=num(p.buy);
+ if(stop&&cur<=stop)return"Stop touché/proche : protéger le capital.";
+ if(target&&cur>=target)return"Objectif atteint : prendre profit ou relever stop.";
+ if(buy&&cur>buy*1.1)return"+10% atteint : envisager prise partielle.";
+ if(t.sig==="Prendre profit")return"Signal IA de prise de profit.";
+ if(["Zone achat","Surveiller achat","Breakout"].includes(t.sig))return"Position techniquement constructive, garder avec stop.";
+ return"Conserver seulement si ton plan initial reste valide.";
+}
+function renderPortfolio(){
+ const rows=portfolio.map((p,i)=>{const t=technical(p.symbol),cur=t?.c||null,buy=num(p.buy),qty=num(p.qty),pnl=cur&&buy&&qty?(cur-buy)*qty:null,perf=cur&&buy?((cur-buy)/buy*100):null,value=cur&&qty?cur*qty:null;return`<div class="card"><div class="row"><div><span class="ticker">${p.symbol}</span><div class="name">${p.type} · ${p.lev||"levier ?"}</div></div><div class="price">${cur?fmt(cur):"Non chargé"}<br><span class="${(perf||0)>=0?'green':'red'}">${perf!==null?pct(perf):""}</span></div></div><div class="grid"><div class="metric"><div class="l">PRU</div><div class="v">${p.buy||"-"}</div></div><div class="metric"><div class="l">Qté</div><div class="v">${p.qty||"-"}</div></div><div class="metric"><div class="l">P/L</div><div class="v">${pnl!==null?(pnl>=0?"+":"")+pnl.toFixed(0):"-"}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Valeur</div><div class="v">${value?fmt(value):"-"}</div></div><div class="metric"><div class="l">Stop</div><div class="v">${p.stop||"-"}</div></div><div class="metric"><div class="l">Objectif</div><div class="v">${p.target||"-"}</div></div></div>${t?`<div class="note"><b>IA position:</b> ${positionAdvice(p,t)}<br>${t.plan}</div>`:`<div class="note">Charge ${p.symbol} dans le scanner pour analyser cette position.</div>`}<button class="secondary" onclick="editPosition(${i})">Modifier</button><button class="danger" onclick="removePosition(${i})">Supprimer</button></div>`}).join("");
+ document.getElementById("portfolio").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><b>Portefeuille avancé</b><div class="note">${portfolioSummary()}</div></div><div class="card"><b>Ajouter position</b><input id="ps" placeholder="Ticker"><select id="pt"><option>Action</option><option>ETF</option><option>ETF levier</option><option>Mini Future</option><option>Call option</option><option>Put option</option></select><input id="pl" placeholder="Levier"><input id="pb" placeholder="Prix achat / PRU"><input id="pq" placeholder="Quantité"><input id="pst" placeholder="Stop"><input id="pta" placeholder="Objectif"><button class="primary" onclick="addPosition()">Ajouter</button></div></div><div class="portfolioGrid">${rows}</div></div>`;
+}
+function editPosition(i){const p=portfolio[i];p.buy=prompt("Prix d’achat / PRU",p.buy)||p.buy;p.qty=prompt("Quantité",p.qty)||p.qty;p.stop=prompt("Stop loss",p.stop)||p.stop;p.target=prompt("Objectif",p.target)||p.target;p.lev=prompt("Levier",p.lev)||p.lev;savePort();renderPortfolio();renderAlerts()}
+function removePosition(i){if(!confirm("Supprimer cette position ?"))return;portfolio.splice(i,1);savePort();renderPortfolio();renderAlerts()}
+function addPosition(){const p={symbol:ps.value.trim().toUpperCase(),type:pt.value,lev:pl.value,buy:pb.value,qty:pq.value,stop:pst.value,target:pta.value};if(!p.symbol)return;portfolio.push(p);savePort();renderPortfolio()}
+
 function renderAlerts(){const arr=[];rankLoaded().forEach(x=>{const t=x.t;if(t.sig!=="Attendre")arr.push(`${x.w.symbol}: ${t.sig} — ${t.plan}`);if(t.dayScore>=75)arr.push(`${x.w.symbol}: score day trading élevé (${t.dayScore}/100).`)});document.getElementById("alerts").innerHTML=`<div class="card ai"><b>Alertes IA</b><div class="note">Alertes basées sur prix refreshés, RSI, supports/résistances, ATR.</div></div><div class="alertList">${arr.map(a=>`<div class="card">${a}</div>`).join("")||`<div class="card">Aucune alerte forte.</div>`}</div>`}
-function show(id,btn){["scanner","daytrading","charts","portfolio","alerts"].forEach(x=>document.getElementById(x).classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));btn.classList.add("active");if(id==="daytrading")renderDay();if(id==="charts")renderCharts();if(id==="portfolio")renderPortfolio();if(id==="alerts")renderAlerts()}
-function renderAll(){renderScanner();renderDay();renderCharts();renderPortfolio();renderAlerts()}renderAll();
+
+function renderHeatmap(){
+ const list=rankLoaded();
+ const tiles=list.map(x=>{const ch=x.t.day||0;return`<div class="tile ${ch>0?'tilePos':ch<0?'tileNeg':'tileNeu'}"><div class="sym">${x.w.symbol}</div><div class="chg ${cls(ch)}">${pct(ch)}</div><div class="kv">${x.t.sig}</div><div class="kv">Swing ${x.t.score} · Day ${x.t.dayScore}</div></div>`}).join("");
+ const sectors={};
+ list.forEach(x=>{const sec=x.w.sector||"Autre"; if(!sectors[sec])sectors[sec]=[]; sectors[sec].push(x.t.day||0)});
+ const secRows=Object.entries(sectors).map(([k,v])=>`<tr><td>${k}</td><td>${pct(v.reduce((a,b)=>a+b,0)/v.length)}</td><td>${v.length}</td></tr>`).join("");
+ document.getElementById("heatmap").innerHTML=`<div class="card ai"><b>Heatmap marché</b><div class="note">Vue rapide des forces/faiblesses par action et par secteur chargé.</div></div><div class="heatmap">${tiles||"<div class='card'>Charge des actions pour afficher la heatmap.</div>"}</div><div class="card" style="margin-top:12px"><b>Force par secteur</b><table class="table"><tr><th>Secteur</th><th>Moy. jour</th><th>Nb</th></tr>${secRows}</table></div>`;
+}
+function copilotText(){
+ const list=rankLoaded();
+ if(!list.length)return"Charge quelques actions dans le scanner puis reviens ici.";
+ const top=list[0], day=list.find(x=>x.t.dayScore>=68), sell=list.find(x=>x.t.sig==="Prendre profit"), buy=list.find(x=>["Zone achat","Breakout","Surveiller achat"].includes(x.t.sig));
+ let txt=`Synthèse IA\n\n`;
+ txt+=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day).\n`;
+ if(day)txt+=`Meilleur setup day trading : ${day.w.symbol}. Plan : ${day.t.plan}\n`;
+ if(buy)txt+=`Setup achat/cassure à surveiller : ${buy.w.symbol} — ${buy.t.sig}. Plan : ${buy.t.plan}\n`;
+ if(sell)txt+=`Action tendue / prise de profit : ${sell.w.symbol}. Plan : ${sell.t.plan}\n`;
+ txt+=`\nRègle de prudence : ne pas entrer si le prix live de l’app ne correspond pas au graphique TradingView/Investing. Avec levier, réduire la taille et utiliser un stop.`;
+ return txt;
+}
+function renderCopilot(){
+ const options=rankLoaded().map(x=>`<option value="${x.w.symbol}">${x.w.symbol}</option>`).join("");
+ document.getElementById("copilot").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><b>IA Copilot</b><div class="note">Résumé automatique basé sur les données chargées, les scores, supports/résistances, ATR et signaux.</div></div><div class="card"><b>Analyser une action</b><select id="copilotSym">${options}</select><button class="primary" onclick="analyzeOne()">Analyser</button><div id="oneAnalysis" class="note"></div></div></div><div class="card"><div class="copilotBox">${copilotText()}</div></div></div>`;
+}
+function analyzeOne(){
+ const s=document.getElementById("copilotSym").value, t=technical(s);
+ if(!t)return;
+ document.getElementById("oneAnalysis").innerHTML=`<b>${s}</b><br>Signal: ${t.sig}<br>Plan: ${t.plan}<br>Prix: ${fmt(t.c)} · High: ${fmt(num(t.q.high))} · Low: ${fmt(num(t.q.low))}<br>Risque: ${t.risk[0]}`;
+}
+function journal(){return JSON.parse(localStorage.getItem("trade_journal_v7")||"[]")}
+function saveJournal(j){localStorage.setItem("trade_journal_v7",JSON.stringify(j))}
+function renderJournal(){
+ const j=journal();
+ const rows=j.map((x,i)=>`<div class="card"><b>${x.sym}</b> · ${x.side}<div class="note">${x.date}<br>Entrée: ${x.entry} · Sortie: ${x.exit||"-"} · Résultat: ${x.result||"-"}<br>${x.reason||""}</div><button class="danger" onclick="delTrade(${i})">Supprimer</button></div>`).join("");
+ document.getElementById("journal").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><b>Journal de trading</b><div class="note">Note tes trades pour identifier ce qui marche vraiment.</div></div><div class="card"><input id="jsym" placeholder="Ticker"><select id="jside"><option>Achat</option><option>Vente</option><option>Short</option><option>Option Call</option><option>Option Put</option></select><input id="jentry" placeholder="Prix entrée"><input id="jexit" placeholder="Prix sortie"><input id="jresult" placeholder="Résultat CHF/%"><input id="jreason" placeholder="Pourquoi ce trade ?"><button class="primary" onclick="addTrade()">Ajouter trade</button></div></div><div class="journalGrid">${rows||"<div class='card'>Aucun trade enregistré.</div>"}</div></div>`;
+}
+function addTrade(){const j=journal();j.unshift({date:new Date().toLocaleString("fr-FR"),sym:jsym.value.toUpperCase(),side:jside.value,entry:jentry.value,exit:jexit.value,result:jresult.value,reason:jreason.value});saveJournal(j);renderJournal()}
+function delTrade(i){const j=journal();j.splice(i,1);saveJournal(j);renderJournal()}
+
+function show(id,btn){["scanner","daytrading","charts","heatmap","portfolio","copilot","journal","alerts"].forEach(x=>document.getElementById(x).classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));btn.classList.add("active");if(id==="daytrading")renderDay();if(id==="charts")renderCharts();if(id==="heatmap")renderHeatmap();if(id==="portfolio")renderPortfolio();if(id==="copilot")renderCopilot();if(id==="journal")renderJournal();if(id==="alerts")renderAlerts()}
+function renderAll(){renderScanner();renderDay();renderCharts();renderHeatmap();renderPortfolio();renderCopilot();renderJournal();renderAlerts()}renderAll();
 </script>
 </body>
 </html>
