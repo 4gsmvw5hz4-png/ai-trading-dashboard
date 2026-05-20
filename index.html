@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V9</title>
+<title>AI Trading Cockpit V10</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -78,12 +78,20 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 .opportunityGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .pill{display:inline-block;border-radius:999px;padding:5px 8px;margin:3px 3px 0 0;font-size:11px;font-weight:900;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07)}
 .coach{font-size:13px;line-height:1.45;color:#dbeafe;white-space:pre-wrap}
+
+.tfBox{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.tf{border-radius:16px;padding:10px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.10)}
+.tf b{display:block;color:#9fb0c8;font-size:11px;margin-bottom:4px}
+.actionBox{border-radius:18px;padding:13px;background:linear-gradient(135deg,rgba(59,130,246,.16),rgba(16,185,129,.11));border:1px solid rgba(96,165,250,.22);margin-top:10px}
+.prob{font-size:24px;font-weight:1000}
+.newsNote{font-size:12px;color:#fbbf24;line-height:1.35;margin-top:8px}
+@media(max-width:900px){.tfBox{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V9</div><div class="title">Trading Scanner</div></div>
+  <div><div class="small">AI Trading Cockpit V10</div><div class="title">Trading Scanner</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -177,11 +185,49 @@ function opportunityScore(x){
  return Math.round(Math.max(0,Math.min(100,s)));
 }
 
+
+function probabilityLabel(score){
+ if(score>=80)return["Très forte","green"];
+ if(score>=70)return["Forte","green"];
+ if(score>=60)return["Correcte","amber"];
+ if(score>=50)return["Moyenne","amber"];
+ return["Faible","red"];
+}
+function nextAction(sym,t){
+ const mt=multiTF(sym);
+ if(t.sig==="Prendre profit")return"Éviter nouvel achat. Sécuriser ou attendre un repli.";
+ if(t.sig==="Breakout")return"Entrer uniquement si la cassure tient avec volume. Stop sous la zone cassée.";
+ if(t.sig==="Zone achat")return"Entrée progressive possible proche support, stop obligatoire.";
+ if(t.sig==="Day trade possible")return"Possible trade court terme. Objectif rapide, stop serré.";
+ if(t.sig==="Surveiller achat")return"Mettre en surveillance. Acheter seulement sur repli propre ou cassure confirmée.";
+ if(mt.label==="Daily positif mais intraday faible")return"Attendre fin de pullback : intéressant seulement si le 5 min/1h se retourne.";
+ if(mt.label==="Rebond court terme contre tendance")return"Rebond possible mais fragile. Trade court uniquement.";
+ return"Attendre. Pas d’avantage clair.";
+}
+function setupQuality(sym,t){
+ const mt=multiTF(sym), setups=detectSetups(sym,t);
+ let p=opportunityScore({w:{symbol:sym},t});
+ if(t.risk&&t.risk[0]==="Élevé")p-=8;
+ p=Math.max(0,Math.min(100,Math.round(p)));
+ return {prob:p,label:probabilityLabel(p),mt,setups,action:nextAction(sym,t)};
+}
+function marketRegime(){
+ const spy=technical("SPY"), qqq=technical("QQQ");
+ if(!spy&&!qqq)return"Charge SPY et QQQ pour obtenir le régime marché.";
+ const a=[];
+ if(spy)a.push(`SPY ${spy.day>=0?"positif":"négatif"} (${pct(spy.day)})`);
+ if(qqq)a.push(`QQQ ${qqq.day>=0?"positif":"négatif"} (${pct(qqq.day)})`);
+ let risk="Neutre";
+ if(spy&&qqq&&spy.day>0&&qqq.day>0)risk="Risk-on : marché porteur.";
+ if(spy&&qqq&&spy.day<0&&qqq.day<0)risk="Risk-off : prudence sur achats agressifs.";
+ return risk+" "+a.join(" · ");
+}
+
 function filteredList(l){if(currentFilter==="buy")return l.filter(x=>["Zone achat","Surveiller achat","Breakout","Day trade possible"].includes(x.t.sig));if(currentFilter==="sell")return l.filter(x=>x.t.sig==="Prendre profit");if(currentFilter==="day")return l.filter(x=>x.t.dayScore>=60||x.t.sig==="Day trade possible");if(currentFilter==="strong")return l.filter(x=>x.t.score>=70);return l}
 function renderScanner(){const all=rankLoaded(),loaded=filteredList(all),errors=allErrors();document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadNextFull()">Charger prochaine</button><button class="secondary" onclick="refreshLoaded()">Force refresh live</button></div></div><div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div><div class="stockGrid ${compact?'compact':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine”.</div></div>`}</div></div></div>`}
-function summaryAI(l){if(!l.length)return"Charge quelques actions pour obtenir un classement IA.";const top=l[0],sell=l.find(x=>x.t.sig==="Prendre profit"),day=l.find(x=>x.t.dayScore>=68),buy=l.find(x=>["Zone achat","Breakout"].includes(x.t.sig));let s=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). `;if(day)s+=`Meilleur setup day : ${day.w.symbol}. `;if(buy)s+=`Opportunité achat/cassure : ${buy.w.symbol} — ${buy.t.sig}. `;if(sell)s+=`Prise de profit à surveiller : ${sell.w.symbol}. `;s+="Données quote: cache 30 sec. Utilise Force refresh live si Investing affiche un prix différent.";return s}
+function summaryAI(l){if(!l.length)return"Charge quelques actions pour obtenir un classement IA.";const top=l[0],sell=l.find(x=>x.t.sig==="Prendre profit"),day=l.find(x=>x.t.dayScore>=68),buy=l.find(x=>["Zone achat","Breakout"].includes(x.t.sig));let s=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). `;if(day)s+=`Meilleur setup day : ${day.w.symbol}. `;if(buy)s+=`Opportunité achat/cassure : ${buy.w.symbol} — ${buy.t.sig}. `;if(sell)s+=`Prise de profit à surveiller : ${sell.w.symbol}. `;s+=`Données quote: cache 30 sec. ${marketRegime()} Utilise Force refresh live si Investing affiche un prix différent.`;return s}
 function rankingTable(l){if(!l.length)return`<div class="note">Charge quelques actions.</div>`;return`<table class="table"><tr><th>Ticker</th><th>Signal</th><th>Swing</th><th>Day</th></tr>${l.slice(0,10).map(x=>`<tr><td>${x.w.symbol}</td><td>${x.t.sig}</td><td>${x.t.score}</td><td>${x.t.dayScore}</td></tr>`).join("")}</table>`}
-function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span></div></div><div class="note">${multiTF(w.symbol).label} · TF: D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Refresh ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
+function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span></div></div><div class="note"><b>Analyse TF:</b> ${multiTF(w.symbol).label}<br>D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="actionBox"><b>Action IA</b><div class="note">${nextAction(w.symbol,t)}</div></div><div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Refresh ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
 async function loadNextFull(){const n=watchlist.find(w=>!technical(w.symbol)&&!getErr(w.symbol));if(!n){alert("Toutes les actions possibles sont chargées ou en erreur.");return}await loadFull(n.symbol)}
 async function loadFull(s){try{clearErr(s);await loadQuote(s,true);await new Promise(r=>setTimeout(r,700));await loadDaily(s,false);await new Promise(r=>setTimeout(r,700));try{await loadIntraday(s,true)}catch(e){}await new Promise(r=>setTimeout(r,500));try{await loadHourly(s,true)}catch(e){}}catch(e){setErr(s,e.message)}renderAll()}
 async function refreshLoaded(){const syms=watchlist.filter(w=>technical(w.symbol)).map(w=>w.symbol);if(!syms.length)return alert("Aucune action chargée.");for(const s of syms){try{clearErr(s);await loadQuote(s,true);await new Promise(r=>setTimeout(r,600));try{await loadIntraday(s,true)}catch(e){}await new Promise(r=>setTimeout(r,500));try{await loadHourly(s,true)}catch(e){}}catch(e){setErr(s,e.message)}}renderAll()}
@@ -227,12 +273,14 @@ function chartReadingHTML(sym){
 
  const rr = (price&&target&&stop) ? Math.abs((target-price)/(price-stop||1)) : null;
  const grade = (t.score>=75||t.dayScore>=75) ? "A" : (t.score>=65||t.dayScore>=65) ? "B" : (t.score>=55||t.dayScore>=55) ? "C" : "D";
- const mt=multiTF(sym);
- const setups=detectSetups(sym,t);
+ const quality=setupQuality(sym,t);
+ const mt=quality.mt;
+ const setups=quality.setups;
 
- return `<div class="card ai"><div class="small">LECTURE IA DU GRAPHIQUE</div><div class="bigSignal ${tone}">${global}</div><div class="note">${sym} · Prix ${fmt(price)} · Setup qualité ${grade} · Swing ${t.score}/100 · Day ${t.dayScore}/100</div></div>
+ return `<div class="card ai"><div class="small">LECTURE IA DU GRAPHIQUE</div><div class="bigSignal ${tone}">${global}</div><div class="note">${sym} · Prix ${fmt(price)} · Setup qualité ${grade} · Probabilité IA ${quality.prob}/100 (${quality.label[0]}) · Swing ${t.score}/100 · Day ${t.dayScore}/100</div></div>
  <div class="graphAIGrid">
-  <div class="graphAICard"><h3>Multi-timeframe</h3><div class="note"><b>${mt.label}</b><br>Daily: ${mt.daily??"-"}/100<br>1h: ${mt.hourly??"-"}/100<br>5 min: ${mt.m5??"-"}/100<br><br>${setups.map(s=>`<span class="pill">${s}</span>`).join("")}</div></div><div class="graphAICard"><h3>Ce que l’IA voit</h3><div class="note">${trendTxt}<br><br>${positionTxt}<br><br>${rsiTxt}<br>${dayTxt}</div></div>
+  <div class="graphAICard"><h3>Action à faire</h3><div class="prob ${quality.label[1]}">${quality.prob}/100</div><div class="note">${quality.action}</div></div>
+ <div class="graphAICard"><h3>Multi-timeframe</h3><div class="tfBox"><div class="tf"><b>Daily</b>${mt.daily??"-"}/100</div><div class="tf"><b>1 heure</b>${mt.hourly??"-"}/100</div><div class="tf"><b>5 minutes</b>${mt.m5??"-"}/100</div></div><div class="note"><b>${mt.label}</b><br>${setups.map(s=>`<span class="pill">${s}</span>`).join("")}</div></div><div class="graphAICard"><h3>Ce que l’IA voit</h3><div class="note">${trendTxt}<br><br>${positionTxt}<br><br>${rsiTxt}<br>${dayTxt}</div></div>
   <div class="graphAICard"><h3>Niveaux clés</h3><div class="levels"><div class="level"><b>Support</b>${fmt(sup)}</div><div class="level"><b>Résistance</b>${fmt(res)}</div><div class="level"><b>ATR</b>${fmt(atr)}</div></div><div class="note">Le support est la zone où les acheteurs peuvent revenir. La résistance est la zone où les vendeurs peuvent bloquer la hausse.</div></div>
   <div class="graphAICard"><h3>Scénario achat</h3><div class="note">Entrée seulement si rebond propre proche de ${fmt(buyPull)} ou cassure nette au-dessus de ${fmt(buyBreak)} avec volume.</div></div>
   <div class="graphAICard"><h3>Scénario sortie / danger</h3><div class="note">Si le prix casse sous ${fmt(stop)}, le setup est invalidé. Il vaut mieux sortir ou éviter d’entrer.</div></div>
@@ -279,19 +327,19 @@ function editPosition(i){const p=portfolio[i];p.buy=prompt("Prix d’achat / PRU
 function removePosition(i){if(!confirm("Supprimer cette position ?"))return;portfolio.splice(i,1);savePort();renderPortfolio();renderAlerts()}
 function addPosition(){const p={symbol:ps.value.trim().toUpperCase(),type:pt.value,lev:pl.value,buy:pb.value,qty:pq.value,stop:pst.value,target:pta.value};if(!p.symbol)return;portfolio.push(p);savePort();renderPortfolio()}
 
-function renderAlerts(){const arr=[];rankLoaded().forEach(x=>{const t=x.t;if(t.sig!=="Attendre")arr.push(`${x.w.symbol}: ${t.sig} — ${t.plan}`);if(t.dayScore>=75)arr.push(`${x.w.symbol}: score day trading élevé (${t.dayScore}/100).`)});document.getElementById("alerts").innerHTML=`<div class="card ai"><b>Alertes IA</b><div class="note">Alertes basées sur prix refreshés, RSI, supports/résistances, ATR.</div></div><div class="alertList">${arr.map(a=>`<div class="card">${a}</div>`).join("")||`<div class="card">Aucune alerte forte.</div>`}</div>`}
+function renderAlerts(){const arr=[];rankLoaded().forEach(x=>{const t=x.t;if(t.sig!=="Attendre"){const q=setupQuality(x.w.symbol,t);arr.push(`${x.w.symbol}: ${t.sig} — Probabilité IA ${q.prob}/100 — ${q.action}`)}if(t.dayScore>=75)arr.push(`${x.w.symbol}: score day trading élevé (${t.dayScore}/100).`)});document.getElementById("alerts").innerHTML=`<div class="card ai"><b>Alertes IA</b><div class="note">Alertes basées sur prix refreshés, RSI, supports/résistances, ATR.</div></div><div class="alertList">${arr.map(a=>`<div class="card">${a}</div>`).join("")||`<div class="card">Aucune alerte forte.</div>`}</div>`}
+
 
 
 function renderOpportunities(){
- const list=rankLoaded().map(x=>({...x,opp:opportunityScore(x),mt:multiTF(x.w.symbol),setups:detectSetups(x.w.symbol,x.t)})).sort((a,b)=>b.opp-a.opp);
+ const list=rankLoaded().map(x=>({...x,opp:opportunityScore(x),mt:multiTF(x.w.symbol),setups:detectSetups(x.w.symbol,x.t),quality:setupQuality(x.w.symbol,x.t)})).sort((a,b)=>b.opp-a.opp);
+ const block=(title,arr,desc)=>`<div class="card"><b>${title}</b><div class="note">${desc}</div><div class="opportunityGrid" style="margin-top:10px">${arr.map(x=>`<div class="graphAICard"><div class="row"><div><span class="ticker">${x.w.symbol}</span><div class="name">${x.t.sig}</div></div><div class="price">${x.quality.prob}/100<br><span class="${x.quality.label[1]}">${x.quality.label[0]}</span></div></div><div class="tfBox"><div class="tf"><b>Daily</b>${x.mt.daily??"-"}</div><div class="tf"><b>1h</b>${x.mt.hourly??"-"}</div><div class="tf"><b>5m</b>${x.mt.m5??"-"}</div></div><div class="note"><b>Action:</b> ${x.quality.action}<br>${x.setups.map(s=>`<span class="pill">${s}</span>`).join("")}</div></div>`).join("")||"<div class='note'>Aucune opportunité claire.</div>"}</div></div>`;
  const topDay=list.filter(x=>x.t.dayScore>=60).slice(0,6);
  const topSwing=list.filter(x=>x.t.score>=60).slice(0,6);
- const rebound=list.filter(x=>x.setups.includes("Proche support")||x.setups.includes("Rebond intraday")).slice(0,6);
- const momentum=list.filter(x=>x.mt.label==="Alignement haussier"||x.setups.includes("Breakout")).slice(0,6);
- const block=(title,arr)=>`<div class="card"><b>${title}</b><div class="opportunityGrid" style="margin-top:10px">${arr.map(x=>`<div class="graphAICard"><div class="row"><div><span class="ticker">${x.w.symbol}</span><div class="name">${x.t.sig}</div></div><div class="price">${x.opp}/100</div></div><div class="note">${x.t.plan}<br>${x.setups.map(s=>`<span class="pill">${s}</span>`).join("")}</div></div>`).join("")||"<div class='note'>Aucune opportunité claire.</div>"}</div></div>`;
- document.getElementById("opportunities").innerHTML=`<div class="card ai"><b>Scanner opportunités IA</b><div class="note">Classement automatique par day trading, swing, rebond et momentum. À utiliser comme filtre, pas comme ordre automatique.</div></div>${block("Top global IA",list.slice(0,8))}${block("Top day trading",topDay)}${block("Top swing",topSwing)}${block("Rebond / support",rebound)}${block("Momentum / cassure",momentum)}`;
+ const rebound=list.filter(x=>x.setups.includes("Proche support")||x.setups.includes("Rebond intraday")||x.setups.includes("Pullback potentiel")).slice(0,6);
+ const momentum=list.filter(x=>x.mt.label==="Alignement haussier"||x.setups.includes("Breakout")||x.setups.includes("Volume fort")).slice(0,6);
+ document.getElementById("opportunities").innerHTML=`<div class="card ai"><b>Top IA — Scanner opportunités</b><div class="note">${marketRegime()}<br>Cette page est l’endroit principal pour voir les comparaisons 5m / 1h / daily, les pullbacks, rebonds et setups détectés.</div></div>${block("Top global IA",list.slice(0,8),"Meilleures opportunités globales selon swing + day + multi-timeframe.")}${block("Top day trading",topDay,"Priorité au 5 minutes, momentum intraday et timing court terme.")}${block("Top swing",topSwing,"Priorité au daily et à la tendance de fond.")}${block("Rebond / Pullback",rebound,"Actions proches support ou en repli dans une tendance encore constructive.")}${block("Momentum / Cassure",momentum,"Actions avec tendance alignée, breakout ou volume fort.")}`;
 }
-
 function renderHeatmap(){
  const list=rankLoaded();
  const tiles=list.map(x=>{const ch=x.t.day||0;return`<div class="tile ${ch>0?'tilePos':ch<0?'tileNeg':'tileNeu'}"><div class="sym">${x.w.symbol}</div><div class="chg ${cls(ch)}">${pct(ch)}</div><div class="kv">${x.t.sig}</div><div class="kv">Swing ${x.t.score} · Day ${x.t.dayScore}</div></div>`}).join("");
