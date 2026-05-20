@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V8</title>
+<title>AI Trading Cockpit V8.1</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -66,19 +66,20 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 .journalGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 
 
-.explainGrid{display:grid;grid-template-columns:360px 1fr;gap:14px;align-items:start}
-.scenario{border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.22);border-radius:18px;padding:12px;margin-top:10px}
-.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-.level{border-radius:16px;padding:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10)}
-.level b{display:block;font-size:11px;color:#9fb0c8;margin-bottom:4px}
+.graphAIGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px}
+.graphAICard{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.065);border-radius:22px;padding:14px}
+.graphAICard h3{margin:0 0 8px;font-size:16px}
 .bigSignal{font-size:28px;font-weight:1000;letter-spacing:-.8px;margin-top:4px}
-@media (max-width:900px){.explainGrid{display:block}.levels{grid-template-columns:1fr}}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.level{border-radius:16px;padding:11px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.10)}
+.level b{display:block;font-size:11px;color:#9fb0c8;margin-bottom:4px}
+@media(max-width:900px){.levels{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V8</div><div class="title">Trading Scanner</div></div>
+  <div><div class="small">AI Trading Cockpit V8.1</div><div class="title">Trading Scanner</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -136,59 +137,60 @@ async function refreshLoaded(){const syms=watchlist.filter(w=>technical(w.symbol
 function setFilter(f){currentFilter=f;renderScanner()}function addWatch(){const v=document.getElementById("newSymbol").value.trim().toUpperCase();if(!v)return;if(watchlist.some(w=>w.symbol===v))return alert("Déjà dans la watchlist.");watchlist.push({symbol:v,label:v,sector:"Custom"});saveWatch();renderScanner()}function removeWatch(s){watchlist=watchlist.filter(w=>w.symbol!==s);["quote","daily","intra","err"].forEach(t=>localStorage.removeItem(ck(t,s)));saveWatch();renderAll()}function resetCache(){if(!confirm("Vider les données chargées ?"))return;Object.keys(localStorage).filter(k=>k.startsWith("quote_")||k.startsWith("daily_")||k.startsWith("intra_")||k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));renderAll()}
 function renderDay(){const list=rankLoaded().filter(x=>x.t.dayScore>=55||["Day trade possible","Breakout","Prendre profit"].includes(x.t.sig)).sort((a,b)=>b.t.dayScore-a.t.dayScore);document.getElementById("daytrading").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><b>Mode Day Trading</b><div class="note">Score day basé sur RSI 5min, gap, ATR, variation jour. Refresh live conseillé avant ordre.</div></div></div><div class="stockGrid ${compact?'compact':''}">${list.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card">Aucun setup day trading clair.</div>`}</div></div>`}
 
-function chartReading(sym){
+function chartReadingHTML(sym){
  const t=technical(sym);
- if(!t) return {html:`<div class="card"><b>${sym}</b><div class="note">Charge d’abord cette action dans le scanner pour que l’IA puisse lire les niveaux techniques.</div></div>`};
+ if(!t){
+  return `<div class="card ai"><b>Lecture IA du graphique</b><div class="note">Charge d’abord ${sym} dans le scanner pour que l’IA puisse calculer supports, résistances, RSI, ATR et scénarios.</div></div>`;
+ }
  const price=t.c, sup=t.sup, res=t.res, atr=t.atr;
  const buyBreak=res?res*1.003:null;
  const buyPull=sup?sup*1.01:null;
  const stop=sup?sup-(atr||0)*0.4:price-(atr||0)*0.8;
  const target=res?res:price+(atr||0)*1.5;
- let global="Attendre";
+ let global="ATTENDRE";
  let tone="wait";
- if(["Zone achat","Surveiller achat","Breakout"].includes(t.sig)){global="Achat possible sous condition";tone="buy"}
- if(t.sig==="Day trade possible"){global="Setup day trading possible";tone="daytrade"}
- if(t.sig==="Prendre profit"){global="Plutôt vendre / sécuriser";tone="sell"}
- let trendTxt = t.tr==="Haussière forte" ? "La tendance de fond est forte : le prix est bien orienté au-dessus des moyennes." :
-                t.tr==="Haussière" ? "La tendance est positive, mais il faut éviter d’acheter trop haut." :
-                t.tr==="Baissière" ? "La tendance est fragile : il vaut mieux attendre un retournement clair." :
-                "La tendance est neutre : le prix hésite, il faut attendre une cassure.";
- let positionTxt = "";
+ if(["Zone achat","Surveiller achat","Breakout"].includes(t.sig)){global="ACHAT POSSIBLE SOUS CONDITION";tone="buy"}
+ if(t.sig==="Day trade possible"){global="SETUP DAY TRADING POSSIBLE";tone="daytrade"}
+ if(t.sig==="Prendre profit"){global="SÉCURISER / PRENDRE PROFIT";tone="sell"}
+
+ const trendTxt = t.tr==="Haussière forte" ? "Tendance de fond forte : le prix reste bien orienté au-dessus des moyennes." :
+                  t.tr==="Haussière" ? "Tendance positive, mais il faut éviter d’acheter trop haut." :
+                  t.tr==="Baissière" ? "Tendance fragile : attendre un retournement clair ou une reprise de support." :
+                  "Tendance neutre : le prix hésite, il faut attendre une cassure nette.";
+
+ let positionTxt = "Position dans le range indisponible.";
  if(sup&&res){
    const zone=(price-sup)/(res-sup);
-   if(zone<0.3) positionTxt="Le prix est proche du support : c’est une zone où un rebond peut se tenter, mais avec stop serré.";
-   else if(zone>0.75) positionTxt="Le prix est proche de la résistance : attention, ce n’est pas idéal pour acheter maintenant.";
-   else positionTxt="Le prix est au milieu entre support et résistance : ce n’est pas la zone la plus avantageuse, attendre un bord de range.";
+   if(zone<0.3) positionTxt="Le prix est proche du support : zone intéressante pour rebond, mais uniquement avec stop serré.";
+   else if(zone>0.75) positionTxt="Le prix est proche de la résistance : prudence, ce n’est pas idéal pour acheter maintenant.";
+   else positionTxt="Le prix est au milieu entre support et résistance : attendre un bord de range ou une cassure.";
  }
- let rsiTxt = t.rsi>70 ? "RSI daily élevé : l’action peut continuer à monter, mais le risque de correction augmente." :
-              t.rsi<35 ? "RSI daily bas : le titre est survendu, un rebond est possible si le support tient." :
-              "RSI daily neutre : pas d’excès majeur.";
- let dayTxt = t.rsi5 && t.rsi5<35 ? "En intraday, RSI 5 min bas : possible rebond court terme." :
-              t.rsi5 && t.rsi5>70 ? "En intraday, RSI 5 min élevé : attention au reflux rapide." :
-              "En intraday, pas d’excès clair.";
- const rr = (price&&target&&stop) ? Math.abs((target-price)/(price-stop||1)) : null;
- const setupGrade = (t.score>=75||t.dayScore>=75) ? "A" : (t.score>=65||t.dayScore>=65) ? "B" : (t.score>=55||t.dayScore>=55) ? "C" : "D";
- return {html:`<div class="card ai"><div class="small">Lecture IA du graphique</div><div class="bigSignal ${tone}">${global}</div><div class="note">${sym} · Prix ${fmt(price)} · Setup qualité ${setupGrade}</div></div>
- <div class="card"><b>Ce que l’IA voit</b><div class="note">${trendTxt}<br><br>${positionTxt}<br><br>${rsiTxt}<br>${dayTxt}</div>
- <div class="levels">
-  <div class="level"><b>Support clé</b>${fmt(sup)}</div>
-  <div class="level"><b>Résistance clé</b>${fmt(res)}</div>
-  <div class="level"><b>ATR / volatilité</b>${fmt(atr)}</div>
- </div></div>
- <div class="card"><b>Scénarios</b>
-  <div class="scenario"><b class="green">Scénario achat</b><div class="note">Acheter seulement si le prix rebondit près de ${fmt(buyPull)} ou casse clairement ${fmt(buyBreak)} avec volume.</div></div>
-  <div class="scenario"><b class="red">Scénario sortie / danger</b><div class="note">Si le prix casse sous ${fmt(stop)}, le setup est invalidé : risque d’aller chercher plus bas.</div></div>
-  <div class="scenario"><b class="blue">Scénario attente</b><div class="note">Si le prix reste entre ${fmt(sup)} et ${fmt(res)} sans volume, mieux vaut attendre. Acheter au milieu de range donne souvent un mauvais risk/reward.</div></div>
- </div>
- <div class="card"><b>Plan simple</b><div class="note">${t.plan}<br>Risk/reward indicatif : ${rr?rr.toFixed(2):"-"}.<br>Pour day trading, privilégier objectif rapide et stop serré. Pour swing, attendre clôture au-dessus résistance ou rebond propre sur support.</div></div>`};
-}
-function renderChartAnalysis(sym){
- const box=document.getElementById("chartAnalysis");
- if(!box)return;
- box.innerHTML=chartReading(sym).html;
-}
 
-function renderCharts(){const buttons=watchlist.map(w=>`<button class="secondary" onclick="selectChart('${w.symbol}')">${w.symbol}</button>`).join("");document.getElementById("charts").innerHTML=`<div class="card ai"><b>Graphique intégré</b><div class="note">TradingView pour confirmer visuellement supports, résistances, cassures et tendance.</div></div><div class="chartControls">${buttons}</div><div class="chartWrap" id="tvchart"></div>`;loadTradingView(selectedChart)}
+ const rsiTxt = t.rsi>70 ? "RSI daily élevé : risque de correction ou de prise de bénéfices." :
+                t.rsi<35 ? "RSI daily bas : titre survendu, rebond possible si le support tient." :
+                "RSI daily neutre : pas d’excès majeur.";
+
+ const dayTxt = t.rsi5 && t.rsi5<35 ? "RSI 5 min bas : rebond court terme possible en day trading." :
+                t.rsi5 && t.rsi5>70 ? "RSI 5 min élevé : attention à un reflux rapide." :
+                "Intraday : pas d’excès clair sur RSI 5 min.";
+
+ const rr = (price&&target&&stop) ? Math.abs((target-price)/(price-stop||1)) : null;
+ const grade = (t.score>=75||t.dayScore>=75) ? "A" : (t.score>=65||t.dayScore>=65) ? "B" : (t.score>=55||t.dayScore>=55) ? "C" : "D";
+
+ return `<div class="card ai"><div class="small">LECTURE IA DU GRAPHIQUE</div><div class="bigSignal ${tone}">${global}</div><div class="note">${sym} · Prix ${fmt(price)} · Setup qualité ${grade} · Swing ${t.score}/100 · Day ${t.dayScore}/100</div></div>
+ <div class="graphAIGrid">
+  <div class="graphAICard"><h3>Ce que l’IA voit</h3><div class="note">${trendTxt}<br><br>${positionTxt}<br><br>${rsiTxt}<br>${dayTxt}</div></div>
+  <div class="graphAICard"><h3>Niveaux clés</h3><div class="levels"><div class="level"><b>Support</b>${fmt(sup)}</div><div class="level"><b>Résistance</b>${fmt(res)}</div><div class="level"><b>ATR</b>${fmt(atr)}</div></div><div class="note">Le support est la zone où les acheteurs peuvent revenir. La résistance est la zone où les vendeurs peuvent bloquer la hausse.</div></div>
+  <div class="graphAICard"><h3>Scénario achat</h3><div class="note">Entrée seulement si rebond propre proche de ${fmt(buyPull)} ou cassure nette au-dessus de ${fmt(buyBreak)} avec volume.</div></div>
+  <div class="graphAICard"><h3>Scénario sortie / danger</h3><div class="note">Si le prix casse sous ${fmt(stop)}, le setup est invalidé. Il vaut mieux sortir ou éviter d’entrer.</div></div>
+  <div class="graphAICard"><h3>Plan simple</h3><div class="note">${t.plan}<br>Risk/reward indicatif : ${rr?rr.toFixed(2):"-"}.</div></div>
+ </div>`;
+}
+function renderCharts(){
+ const buttons=watchlist.map(w=>`<button class="secondary" onclick="selectChart('${w.symbol}')">${w.symbol}</button>`).join("");
+ document.getElementById("charts").innerHTML=`<div class="card ai"><b>Graphique + lecture IA</b><div class="note">L’IA traduit le graphique en langage simple : tendance, support, résistance, achat, sortie, stop et objectif.</div></div><div class="chartControls">${buttons}</div><div id="chartAI">${chartReadingHTML(selectedChart)}</div><div class="chartWrap" id="tvchart"></div>`;
+ loadTradingView(selectedChart);
+}
 function selectChart(s){selectedChart=s;localStorage.setItem("selectedChart_v6",s);loadTradingView(s)}function openChart(s){selectedChart=s;localStorage.setItem("selectedChart_v6",s);document.querySelectorAll(".nav button")[2].click()}
 function loadTradingView(sym){const box=document.getElementById("tvchart");if(!box)return;box.innerHTML="";const s=document.createElement("script");s.src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";s.async=true;s.innerHTML=JSON.stringify({autosize:true,symbol:tvSymbol(sym),interval:"15",timezone:"Europe/Zurich",theme:"dark",style:"1",locale:"fr",enable_publishing:false,allow_symbol_change:true,studies:["RSI@tv-basicstudies","MASimple@tv-basicstudies","MACD@tv-basicstudies"],support_host:"https://www.tradingview.com"});box.appendChild(s)}
 
