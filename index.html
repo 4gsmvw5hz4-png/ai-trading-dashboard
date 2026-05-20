@@ -1,64 +1,68 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI Trading Cockpit</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Trading Cockpit V3</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#05070a;color:white;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
-.app{max-width:430px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,#111827,#05070a);padding:18px 14px 90px}
-.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.app{max-width:450px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,#111827,#05070a);padding:18px 14px 92px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .small{font-size:12px;color:#93a4bd}
 .title{font-size:25px;font-weight:900;letter-spacing:-.8px}
-.logo,.apiBtn{border:1px solid rgba(255,255,255,.28);background:#1d2738;border-radius:15px;color:#fff;padding:10px 12px;font-weight:800}
+.btn,.apiBtn{border:1px solid rgba(255,255,255,.25);background:#1d2738;border-radius:15px;color:#fff;padding:10px 12px;font-weight:900}
 .card{background:rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:14px;margin-bottom:13px;box-shadow:0 10px 24px rgba(0,0,0,.22)}
 .ai{background:linear-gradient(135deg,rgba(31,111,235,.28),rgba(16,185,129,.17));border-color:rgba(83,163,255,.25)}
 .row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .ticker{font-size:22px;font-weight:900;letter-spacing:-.5px}
 .name{font-size:13px;color:#9fb0c8;margin-top:2px}
 .price{text-align:right;font-weight:900;font-size:16px}
-.green{color:#34d399}.red{color:#fb7185}.amber{color:#fbbf24}.blue{color:#60a5fa}
-.badge{font-size:11px;padding:5px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);font-weight:800}
+.green{color:#34d399}.red{color:#fb7185}.amber{color:#fbbf24}.blue{color:#60a5fa}.muted{color:#9fb0c8}
+.badge{font-size:11px;padding:5px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);font-weight:900}
 .buy{color:#34d399;background:rgba(52,211,153,.13);border-color:rgba(52,211,153,.3)}
 .sell{color:#fb7185;background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.3)}
 .watch{color:#60a5fa;background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3)}
+.daytrade{color:#fbbf24;background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.3)}
 .wait{color:#cbd5e1}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
 .metric{background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px}
 .metric .l{font-size:11px;color:#9fb0c8}.metric .v{font-weight:900;font-size:13px;margin-top:3px}
 .note{font-size:13px;line-height:1.35;color:#dbeafe;margin-top:12px}
 .nav{position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.82);border-top:1px solid rgba(255,255,255,.1);backdrop-filter:blur(16px)}
-.navin{max-width:430px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px}
-.nav button{border:0;border-radius:17px;padding:13px 8px;background:transparent;color:#9fb0c8;font-weight:800}
+.navin{max-width:450px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px}
+.nav button{border:0;border-radius:17px;padding:12px 6px;background:transparent;color:#9fb0c8;font-weight:900}
 .nav button.active{background:white;color:#05070a}
 .hidden{display:none}
 input,select{width:100%;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.23);color:#fff;border-radius:14px;padding:12px;margin:5px 0 9px}
 button.primary{width:100%;border:0;border-radius:17px;background:white;color:#05070a;padding:13px;font-weight:900;margin-top:8px}
-button.secondary{width:100%;border:1px solid rgba(255,255,255,.18);border-radius:17px;background:rgba(255,255,255,.07);color:#fff;padding:12px;font-weight:800;margin-top:8px}
-textarea{width:100%;min-height:90px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.23);color:white;border-radius:14px;padding:12px}
+button.secondary{width:100%;border:1px solid rgba(255,255,255,.18);border-radius:17px;background:rgba(255,255,255,.07);color:#fff;padding:12px;font-weight:900;margin-top:8px}
+button.danger{width:100%;border:1px solid rgba(251,113,133,.35);border-radius:17px;background:rgba(251,113,133,.12);color:#fb7185;padding:12px;font-weight:900;margin-top:8px}
 hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}
 .kv{font-size:12px;color:#9fb0c8}
+.progress{height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:10px}
+.bar{height:100%;background:linear-gradient(90deg,#fb7185,#fbbf24,#34d399);width:50%}
+.warn{font-size:12px;color:#fbbf24;line-height:1.35}
 </style>
 </head>
 <body>
 <div class="app">
-  <header class="top">
-    <div>
-      <div class="small">AI Trading Cockpit</div>
-      <div class="title">Market Scanner</div>
-    </div>
-    <button class="apiBtn" onclick="setApiKey()">API</button>
-  </header>
+<header class="top">
+  <div><div class="small">AI Trading Cockpit V3</div><div class="title">Trading Scanner</div></div>
+  <button class="apiBtn" onclick="setApiKey()">API</button>
+</header>
 
-  <section id="scanner"></section>
-  <section id="portfolio" class="hidden"></section>
-  <section id="alerts" class="hidden"></section>
+<section id="scanner"></section>
+<section id="daytrading" class="hidden"></section>
+<section id="portfolio" class="hidden"></section>
+<section id="alerts" class="hidden"></section>
 </div>
 
 <nav class="nav">
   <div class="navin">
     <button class="active" onclick="show('scanner',this)">Scanner</button>
+    <button onclick="show('daytrading',this)">Day</button>
     <button onclick="show('portfolio',this)">Portfolio</button>
     <button onclick="show('alerts',this)">Alertes</button>
   </div>
@@ -75,209 +79,284 @@ const DEFAULT_WATCHLIST = [
   {symbol:"MSFT", label:"Microsoft", sector:"Cloud / AI"},
   {symbol:"ADBE", label:"Adobe", sector:"Software"},
   {symbol:"YETI", label:"Yeti", sector:"Consumer"},
-  {symbol:"RACE", label:"Ferrari", sector:"Luxe / Auto"},
+  {symbol:"RACE", label:"Ferrari US ADR", sector:"Luxe / Auto"},
   {symbol:"STLA", label:"Stellantis", sector:"Auto"},
-  {symbol:"FDJ", label:"FDJ", sector:"Dividende / Europe"}
+  {symbol:"FDJ", label:"FDJ", sector:"Dividende / Europe"},
+  {symbol:"XAG/USD", label:"Silver spot", sector:"Métaux précieux"}
 ];
 
 const DEFAULT_PORTFOLIO = [
   {symbol:"YETI", type:"Action", lev:"x1", buy:"", qty:"", target:"", stop:""},
-  {symbol:"QCOM", type:"Action", lev:"x1", buy:"", qty:"", target:"", stop:""},
+  {symbol:"QCOM", type:"Mini future", lev:"", buy:"", qty:"", target:"", stop:""},
   {symbol:"ADBE", type:"Action", lev:"x1", buy:"", qty:"", target:"", stop:""},
   {symbol:"MSFT", type:"Action", lev:"x1", buy:"", qty:"", target:"", stop:""},
-  {symbol:"Silver Future", type:"Future / ETF", lev:"", buy:"", qty:"", target:"", stop:""},
+  {symbol:"XAG/USD", type:"Silver / Future", lev:"", buy:"", qty:"", target:"", stop:""},
   {symbol:"RACE", type:"Action", lev:"x1", buy:"", qty:"", target:"", stop:""},
   {symbol:"STLA", type:"Action", lev:"x1", buy:"", qty:"", target:"", stop:""},
   {symbol:"FDJ", type:"Action", lev:"x1", buy:"", qty:"", target:"", stop:""}
 ];
 
-let watchlist = JSON.parse(localStorage.getItem("watchlist")||"null") || DEFAULT_WATCHLIST;
-let portfolio = JSON.parse(localStorage.getItem("portfolio")||"null") || DEFAULT_PORTFOLIO;
+let watchlist = JSON.parse(localStorage.getItem("watchlist_v3")||"null") || DEFAULT_WATCHLIST;
+let portfolio = JSON.parse(localStorage.getItem("portfolio_v3")||"null") || DEFAULT_PORTFOLIO;
 
 function apiKey(){ return localStorage.getItem("TWELVE_API_KEY") || ""; }
 function setApiKey(){
   const k = prompt("Colle ta clé API Twelve Data :", apiKey());
-  if(k !== null){ localStorage.setItem("TWELVE_API_KEY", k.trim()); alert("Clé enregistrée. Clique ensuite sur Charger / Actualiser."); }
+  if(k !== null){ localStorage.setItem("TWELVE_API_KEY", k.trim()); alert("Clé enregistrée."); }
 }
-function cacheKey(symbol){ return "quote_cache_"+symbol; }
-function getCache(symbol){
-  try { return JSON.parse(localStorage.getItem(cacheKey(symbol))||"null"); } catch(e){ return null; }
-}
-function setCache(symbol,data){ localStorage.setItem(cacheKey(symbol), JSON.stringify({time:Date.now(),data})); }
-function isFresh(c){ return c && (Date.now()-c.time) < 15*60*1000; }
+function ck(type,symbol){ return type+"_"+symbol.replaceAll("/","_"); }
+function getC(type,symbol){ try{return JSON.parse(localStorage.getItem(ck(type,symbol))||"null")}catch(e){return null} }
+function setC(type,symbol,data){ localStorage.setItem(ck(type,symbol), JSON.stringify({time:Date.now(),data})); }
+function fresh(c,min=15){ return c && Date.now()-c.time < min*60*1000; }
+function num(x){ const n=Number(x); return isFinite(n)?n:null; }
+function fmt(n){ return n===null||n===undefined||isNaN(n)?"-":"$"+Number(n).toFixed(2); }
+function pct(v){ const n=num(v); if(n===null)return "-"; return (n>=0?"+":"")+n.toFixed(2)+"%"; }
+function cls(n){ return (num(n)||0)>=0 ? "green" : "red"; }
 
-async function fetchTD(symbol){
-  const key = apiKey();
-  if(!key) throw new Error("Ajoute ta clé API Twelve Data.");
-  const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
-  const r = await fetch(url);
+async function td(path,params){
+  const key=apiKey(); if(!key) throw new Error("Ajoute ta clé Twelve Data via API.");
+  const qs = new URLSearchParams({...params, apikey:key});
+  const r = await fetch(`https://api.twelvedata.com/${path}?${qs.toString()}`);
   const j = await r.json();
   if(j.status==="error" || j.code || j.message) throw new Error(j.message || "Erreur API");
   return j;
 }
-async function loadSymbol(symbol, force=false){
-  const c = getCache(symbol);
-  if(!force && isFresh(c)) return c.data;
-  const data = await fetchTD(symbol);
-  setCache(symbol,data);
-  return data;
+async function loadQuote(symbol,force=false){
+  const c=getC("quote",symbol); if(!force && fresh(c,15)) return c.data;
+  const j=await td("quote",{symbol});
+  setC("quote",symbol,j); return j;
 }
-function num(x){ const n = Number(x); return isFinite(n)?n:null; }
-function fmt(n){ return n===null || n===undefined || isNaN(n) ? "-" : "$"+Number(n).toFixed(2); }
-function pct(v){ const n=num(v); if(n===null) return "-"; return (n>=0?"+":"")+n.toFixed(2)+"%"; }
+async function loadDaily(symbol,force=false){
+  const c=getC("daily",symbol); if(!force && fresh(c,60)) return c.data;
+  const j=await td("time_series",{symbol,interval:"1day",outputsize:"220"});
+  setC("daily",symbol,j); return j;
+}
+async function loadIntraday(symbol,force=false){
+  const c=getC("intra",symbol); if(!force && fresh(c,5)) return c.data;
+  const j=await td("time_series",{symbol,interval:"5min",outputsize:"78"});
+  setC("intra",symbol,j); return j;
+}
 
-function score(q){
-  const p = num(q.percent_change) ?? 0;
-  const close = num(q.close) ?? num(q.previous_close) ?? 0;
-  const open = num(q.open) ?? close;
-  const high = num(q.high) ?? close;
-  const low = num(q.low) ?? close;
-  let s = 50;
-  if(p > 0) s += 8;
-  if(p > 2) s += 8;
-  if(p < -2) s -= 8;
-  if(close > open) s += 7;
-  if(close < open) s -= 5;
-  const range = high-low;
-  if(range && close > low + range*0.65) s += 7;
-  if(range && close < low + range*0.3) s -= 7;
-  return Math.max(0, Math.min(100, Math.round(s)));
+function values(ts){ return (ts?.values||[]).slice().reverse().map(x=>({date:x.datetime,open:num(x.open),high:num(x.high),low:num(x.low),close:num(x.close),volume:num(x.volume)||0})).filter(x=>x.close); }
+function SMA(arr,p){ if(arr.length<p)return null; return arr.slice(-p).reduce((a,b)=>a+b.close,0)/p; }
+function RSI(arr,p=14){
+ if(arr.length<p+1)return null;
+ let gains=0,losses=0;
+ const s=arr.slice(-(p+1));
+ for(let i=1;i<s.length;i++){ const d=s[i].close-s[i-1].close; if(d>=0)gains+=d; else losses-=d; }
+ if(losses===0)return 100;
+ const rs=(gains/p)/(losses/p); return 100-(100/(1+rs));
 }
-function signal(q){
-  const p = num(q.percent_change) ?? 0;
-  const s = score(q);
-  const close = num(q.close), open=num(q.open), high=num(q.high), low=num(q.low);
-  const nearLow = close && low && high && (close-low)/(high-low || 1) < .35;
-  const nearHigh = close && low && high && (close-low)/(high-low || 1) > .75;
-  if(p <= -3 && s >= 45) return ["Zone achat", "buy"];
-  if(p >= 4 || nearHigh) return ["Prendre profit", "sell"];
-  if(s >= 63) return ["Surveiller achat", "watch"];
-  if(nearLow && p < 0) return ["Repli à surveiller", "watch"];
-  return ["Attendre", "wait"];
+function ATR(arr,p=14){
+ if(arr.length<p+1)return null; let trs=[];
+ for(let i=1;i<arr.length;i++){ const h=arr[i].high,l=arr[i].low,pc=arr[i-1].close; trs.push(Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc))); }
+ return trs.slice(-p).reduce((a,b)=>a+b,0)/p;
 }
-function aiComment(q){
-  const p = num(q.percent_change) ?? 0;
-  const [sig] = signal(q);
-  const s = score(q);
-  if(sig==="Zone achat") return "Correction forte : entrée possible uniquement si le marché confirme. Stop obligatoire.";
-  if(sig==="Prendre profit") return "Titre tendu à court terme : envisager prise de bénéfice partielle ou stop relevé.";
-  if(sig==="Surveiller achat") return "Momentum correct : intéressant sur repli ou cassure avec volume.";
-  if(s < 45) return "Setup fragile : attendre un meilleur point d’entrée.";
-  return "Pas de signal fort : surveiller support/résistance avant d’agir.";
+function support(arr,p=30){ if(arr.length<p)return null; return Math.min(...arr.slice(-p).map(x=>x.low)); }
+function resistance(arr,p=30){ if(arr.length<p)return null; return Math.max(...arr.slice(-p).map(x=>x.high)); }
+function trend(arr){
+ const s20=SMA(arr,20), s50=SMA(arr,50), s200=SMA(arr,200), c=arr.at(-1)?.close;
+ if(!s20||!s50)return "n/a";
+ if(c>s20 && s20>s50 && (!s200 || s50>s200)) return "Haussière forte";
+ if(c>s20 && s20>s50) return "Haussière";
+ if(c<s20 && s20<s50) return "Baissière";
+ return "Neutre";
+}
+function volumeSignal(arr){
+ if(arr.length<21)return "n/a";
+ const v=arr.at(-1).volume||0, avg=arr.slice(-21,-1).reduce((a,b)=>a+(b.volume||0),0)/20;
+ if(!avg)return "n/a";
+ if(v>avg*1.8)return "Volume très fort";
+ if(v>avg*1.25)return "Volume supérieur";
+ if(v<avg*.7)return "Volume faible";
+ return "Volume normal";
+}
+function technical(symbol){
+ const q=getC("quote",symbol)?.data, d=values(getC("daily",symbol)?.data), i=values(getC("intra",symbol)?.data);
+ const arr=d.length?d:null; if(!q||!arr)return null;
+ const c=num(q.close) || arr.at(-1).close;
+ const rsi=RSI(arr), rsi5=i.length?RSI(i,14):null, s20=SMA(arr,20), s50=SMA(arr,50), s200=SMA(arr,200), atr=ATR(arr), sup=support(arr), res=resistance(arr);
+ const distSup=sup?((c-sup)/c*100):null, distRes=res?((res-c)/c*100):null;
+ const day=num(q.percent_change)||0;
+ let score=50;
+ if(rsi!==null){ if(rsi<30)score+=16; else if(rsi<40)score+=9; else if(rsi>75)score-=16; else if(rsi>68)score-=8; }
+ if(s20&&c>s20)score+=8; if(s50&&c>s50)score+=8; if(s200&&c>s200)score+=6;
+ if(s20&&s50&&s20>s50)score+=6; if(s20&&s50&&s20<s50)score-=6;
+ if(distSup!==null&&distSup<3)score+=8;
+ if(distRes!==null&&distRes<3)score-=6;
+ if(day>2)score+=4; if(day>5)score-=8; if(day<-4)score+=3;
+ if(volumeSignal(arr).includes("fort"))score+=5;
+ score=Math.max(0,Math.min(100,Math.round(score)));
+ let sig="Attendre", tone="wait";
+ if(rsi!==null && rsi<35 && distSup!==null && distSup<6 && score>=58){ sig="Zone achat"; tone="buy"; }
+ else if(score>=70 && day<4){ sig="Surveiller achat"; tone="watch"; }
+ else if((rsi!==null && rsi>70) || distRes!==null && distRes<2 || day>5){ sig="Prendre profit"; tone="sell"; }
+ else if(i.length && rsi5!==null && rsi5<35 && day<0){ sig="Day trade possible"; tone="daytrade"; }
+ const advice = makeAdvice({sig,score,rsi,rsi5,s20,s50,s200,c,sup,res,atr,day,tr:trend(arr),vol:volumeSignal(arr),distSup,distRes});
+ return {q,arr,i,c,rsi,rsi5,s20,s50,s200,atr,sup,res,distSup,distRes,score,sig,tone,tr:trend(arr),vol:volumeSignal(arr),day,advice};
+}
+function makeAdvice(t){
+ if(t.sig==="Prendre profit") return "Titre tendu : privilégier prise partielle, stop relevé, ou attendre un repli. Éviter d’acheter impulsivement.";
+ if(t.sig==="Zone achat") return "Zone intéressante : entrée progressive possible, mais seulement avec stop sous support et taille de position maîtrisée.";
+ if(t.sig==="Surveiller achat") return "Setup correct : surveiller cassure ou repli contrôlé. Entrée plus propre près du support.";
+ if(t.sig==="Day trade possible") return "Intraday survendu : possible rebond court terme, à jouer uniquement avec objectif rapide et stop serré.";
+ if(t.tr==="Baissière") return "Tendance faible : attendre retournement ou signal de volume avant achat.";
+ return "Pas de signal fort : attendre confirmation technique, support ou résistance claire.";
+}
+function rankLoaded(){
+ return watchlist.map(w=>({w,t:technical(w.symbol)})).filter(x=>x.t).sort((a,b)=>b.t.score-a.t.score);
 }
 
 function renderScanner(){
-  const box = document.getElementById("scanner");
-  const loaded = watchlist.map(w => ({...w, cache:getCache(w.symbol)})).filter(x=>x.cache);
-  const cards = loaded.map(x=>cardHTML(x, x.cache.data)).join("");
-  box.innerHTML = `
-    <div class="card ai">
-      <div class="small">Résumé IA</div>
-      <div class="note">Scanner multi-actions avec cache 15 min pour éviter les limites Twelve Data. Charge les actions une par une puis l’IA classe les signaux.</div>
-      <button class="primary" onclick="loadNext()">Charger prochaine action</button>
-      <button class="secondary" onclick="refreshAllCached()">Actualiser les actions chargées</button>
-    </div>
-    <div class="card">
-      <b>Watchlist</b>
-      <div class="kv">Actions : ${watchlist.map(x=>x.symbol).join(", ")}</div>
-      <hr>
-      <input id="newSymbol" placeholder="Ajouter ticker ex: AMZN, TSLA, META">
-      <button class="secondary" onclick="addWatch()">Ajouter à la watchlist</button>
-    </div>
-    ${cards || `<div class="card"><b>Aucune donnée chargée.</b><div class="note">Clique sur “Charger prochaine action”. Si tu as une erreur de limite, attends une minute.</div></div>`}
-  `;
+ const loaded=rankLoaded();
+ const box=document.getElementById("scanner");
+ const cards=loaded.map(x=>cardHTML(x.w,x.t)).join("");
+ box.innerHTML=`
+ <div class="card ai">
+  <div class="small">Résumé IA</div>
+  <div class="note">${summaryAI(loaded)}</div>
+  <button class="primary" onclick="loadNextFull()">Charger prochaine action complète</button>
+  <button class="secondary" onclick="refreshLoaded()">Actualiser actions chargées</button>
+ </div>
+ <div class="card">
+  <b>Watchlist</b><div class="kv">Actions : ${watchlist.map(x=>x.symbol).join(", ")}</div><hr>
+  <input id="newSymbol" placeholder="Ajouter ticker ex: AMZN, TSLA, META, XAG/USD">
+  <button class="secondary" onclick="addWatch()">Ajouter à la watchlist</button>
+  <button class="danger" onclick="resetCache()">Vider cache données</button>
+ </div>
+ ${cards || `<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine action complète”. Attention : chaque action utilise plusieurs appels API.</div></div>`}`;
+ renderAlerts();
 }
-function cardHTML(w,q){
-  const sc = score(q);
-  const [lab,tone] = signal(q);
-  const change = num(q.percent_change);
-  return `<div class="card">
-    <div class="row">
-      <div><span class="ticker">${w.symbol}</span> <span class="badge ${tone}">${lab}</span><div class="name">${q.name || w.label} · ${w.sector}</div></div>
-      <div class="price">${fmt(num(q.close))}<br><span class="${change>=0?'green':'red'}">${pct(change)}</span></div>
-    </div>
-    <div class="grid">
-      <div class="metric"><div class="l">Open</div><div class="v">${fmt(num(q.open))}</div></div>
-      <div class="metric"><div class="l">High/Low</div><div class="v">${fmt(num(q.high))} / ${fmt(num(q.low))}</div></div>
-      <div class="metric"><div class="l">Score IA</div><div class="v">${sc}/100</div></div>
-    </div>
-    <div class="note">${aiComment(q)}</div>
-  </div>`;
+function summaryAI(list){
+ if(!list.length)return "Charge quelques actions pour obtenir un classement IA.";
+ const top=list[0], sell=list.find(x=>x.t.sig==="Prendre profit"), buy=list.find(x=>x.t.sig==="Zone achat"||x.t.sig==="Day trade possible");
+ let s=`Meilleur score actuel : ${top.w.symbol} (${top.t.score}/100). `;
+ if(buy) s+=`Opportunité potentielle : ${buy.w.symbol} — ${buy.t.sig}. `;
+ if(sell) s+=`Attention prise de profit : ${sell.w.symbol}. `;
+ s+="Les signaux sont indicatifs : toujours vérifier graphique et risque avant ordre.";
+ return s;
 }
-async function loadNext(){
-  const next = watchlist.find(w => !getCache(w.symbol) || !isFresh(getCache(w.symbol)));
-  if(!next){ alert("Toutes les actions sont déjà chargées récemment."); return; }
-  try { await loadSymbol(next.symbol,true); renderScanner(); renderPortfolio(); renderAlerts(); }
-  catch(e){ alert(e.message); }
+function cardHTML(w,t){
+ const q=t.q;
+ return `<div class="card">
+  <div class="row">
+   <div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${q.name||w.label} · ${w.sector}</div></div>
+   <div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span></div>
+  </div>
+  <div class="grid">
+   <div class="metric"><div class="l">RSI daily</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div>
+   <div class="metric"><div class="l">RSI 5 min</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div>
+   <div class="metric"><div class="l">Score IA</div><div class="v">${t.score}/100</div></div>
+  </div>
+  <div class="grid">
+   <div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div>
+   <div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div>
+   <div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div>
+  </div>
+  <div class="grid">
+   <div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div>
+   <div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div>
+   <div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div>
+  </div>
+  <div class="grid2">
+   <div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div>
+   <div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div>
+  </div>
+  <div class="progress"><div class="bar" style="width:${t.score}%"></div></div>
+  <div class="note">${t.advice}</div>
+ </div>`;
 }
-async function refreshAllCached(){
-  const symbols = watchlist.filter(w=>getCache(w.symbol)).map(w=>w.symbol);
-  if(!symbols.length) return alert("Aucune action chargée.");
-  for(const s of symbols){
-    try{ await loadSymbol(s,true); }catch(e){ alert("Erreur "+s+": "+e.message); break; }
-    await new Promise(r=>setTimeout(r,800));
-  }
-  renderScanner(); renderPortfolio(); renderAlerts();
+async function loadNextFull(){
+ const next=watchlist.find(w=>!technical(w.symbol));
+ if(!next){alert("Toutes les actions disponibles sont chargées.");return;}
+ await loadFull(next.symbol);
+}
+async function loadFull(symbol){
+ try{
+  await loadQuote(symbol,true);
+  await new Promise(r=>setTimeout(r,700));
+  await loadDaily(symbol,true);
+  await new Promise(r=>setTimeout(r,700));
+  try{ await loadIntraday(symbol,true); }catch(e){}
+  renderScanner(); renderDay(); renderPortfolio();
+ }catch(e){ alert("Erreur "+symbol+" : "+e.message); }
+}
+async function refreshLoaded(){
+ const syms=watchlist.filter(w=>technical(w.symbol)).map(w=>w.symbol);
+ if(!syms.length)return alert("Aucune action chargée.");
+ for(const s of syms){ await loadFull(s); await new Promise(r=>setTimeout(r,900)); }
 }
 function addWatch(){
-  const v=document.getElementById("newSymbol").value.trim().toUpperCase();
-  if(!v) return;
-  watchlist.push({symbol:v,label:v,sector:"Custom"});
-  localStorage.setItem("watchlist",JSON.stringify(watchlist));
-  renderScanner();
+ const v=document.getElementById("newSymbol").value.trim().toUpperCase();
+ if(!v)return;
+ watchlist.push({symbol:v,label:v,sector:"Custom"});
+ localStorage.setItem("watchlist_v3",JSON.stringify(watchlist));
+ renderScanner();
+}
+function resetCache(){
+ if(!confirm("Vider les données chargées ?"))return;
+ Object.keys(localStorage).filter(k=>k.startsWith("quote_")||k.startsWith("daily_")||k.startsWith("intra_")).forEach(k=>localStorage.removeItem(k));
+ renderScanner(); renderDay(); renderPortfolio(); renderAlerts();
 }
 
+function renderDay(){
+ const list=rankLoaded();
+ const day=list.filter(x=>["Day trade possible","Zone achat","Surveiller achat","Prendre profit"].includes(x.t.sig));
+ document.getElementById("daytrading").innerHTML=`
+ <div class="card ai"><b>Mode Day Trading</b><div class="note">Cherche les mouvements courts avec RSI 5min, variation jour, support/résistance et ATR. Pour objectif journalier type 300 CHF, le plus important reste taille de position + stop.</div></div>
+ <div class="card"><b>Règles IA proposées</b>
+  <div class="note">Entrée seulement si signal + marché cohérent. Stop serré entre 0.5× et 1× ATR intraday. Prise de profit rapide si +1% à +3% sur action, plus strict avec levier.</div>
+ </div>
+ ${day.map(x=>cardHTML(x.w,x.t)).join("") || `<div class="card">Aucun setup day trading clair pour l’instant.</div>`}`;
+}
 function renderPortfolio(){
-  const box = document.getElementById("portfolio");
-  const rows = portfolio.map((p,i)=>{
-    const c=getCache(p.symbol); const q=c?.data; const cur = q?num(q.close):null;
-    const buy=num(p.buy), qty=num(p.qty);
-    const pnl = cur&&buy&&qty ? (cur-buy)*qty : null;
-    const perf = cur&&buy ? ((cur-buy)/buy*100) : null;
-    return `<div class="card">
-      <div class="row"><div><span class="ticker">${p.symbol}</span><div class="name">${p.type} · ${p.lev||"levier ?"}</div></div><div class="price">${cur?fmt(cur):"Non chargé"}<br><span class="${(perf||0)>=0?'green':'red'}">${perf!==null?pct(perf):""}</span></div></div>
-      <div class="grid">
-        <div class="metric"><div class="l">Achat</div><div class="v">${p.buy||"-"}</div></div>
-        <div class="metric"><div class="l">Qté</div><div class="v">${p.qty||"-"}</div></div>
-        <div class="metric"><div class="l">P/L</div><div class="v">${pnl!==null?(pnl>=0?"+":"")+pnl.toFixed(0):"-"}</div></div>
-      </div>
-      <button class="secondary" onclick="editPosition(${i})">Modifier position</button>
-    </div>`
-  }).join("");
-  box.innerHTML = `
-  <div class="card ai"><b>Portefeuille</b><div class="note">Entre tes prix d’achat et quantités. L’app calculera P/L et alertes avec les prix chargés.</div></div>
-  ${rows}
-  <div class="card"><b>Ajouter une position</b><input id="ps" placeholder="Ticker ex: AMZN"><select id="pt"><option>Action</option><option>ETF</option><option>ETF levier</option><option>Mini Future</option><option>Call option</option><option>Put option</option></select><input id="pl" placeholder="Levier ex: x1, x3"><input id="pb" placeholder="Prix achat"><input id="pq" placeholder="Quantité"><input id="pst" placeholder="Stop"><input id="pta" placeholder="Objectif"><button class="primary" onclick="addPosition()">Ajouter</button></div>`;
+ const rows=portfolio.map((p,i)=>{
+  const t=technical(p.symbol); const cur=t?.c||null; const buy=num(p.buy),qty=num(p.qty);
+  const pnl=cur&&buy&&qty?(cur-buy)*qty:null; const perf=cur&&buy?((cur-buy)/buy*100):null;
+  return `<div class="card">
+   <div class="row"><div><span class="ticker">${p.symbol}</span><div class="name">${p.type} · ${p.lev||"levier ?"}</div></div><div class="price">${cur?fmt(cur):"Non chargé"}<br><span class="${(perf||0)>=0?'green':'red'}">${perf!==null?pct(perf):""}</span></div></div>
+   <div class="grid"><div class="metric"><div class="l">Achat</div><div class="v">${p.buy||"-"}</div></div><div class="metric"><div class="l">Qté</div><div class="v">${p.qty||"-"}</div></div><div class="metric"><div class="l">P/L</div><div class="v">${pnl!==null?(pnl>=0?"+":"")+pnl.toFixed(0):"-"}</div></div></div>
+   ${t?`<div class="note">Signal actuel : ${t.sig}. ${t.advice}</div>`:`<div class="note">Charge ${p.symbol} dans le scanner pour analyser cette position.</div>`}
+   <button class="secondary" onclick="editPosition(${i})">Modifier</button>
+  </div>`
+ }).join("");
+ document.getElementById("portfolio").innerHTML=`
+ <div class="card ai"><b>Portefeuille</b><div class="note">Tu pourras compléter plus tard tes mini-futures, leviers, prix d’achat, stops et objectifs.</div></div>
+ ${rows}
+ <div class="card"><b>Ajouter une position</b><input id="ps" placeholder="Ticker ex: AMZN"><select id="pt"><option>Action</option><option>ETF</option><option>ETF levier</option><option>Mini Future</option><option>Call option</option><option>Put option</option></select><input id="pl" placeholder="Levier ex: x1, x3"><input id="pb" placeholder="Prix achat"><input id="pq" placeholder="Quantité"><input id="pst" placeholder="Stop"><input id="pta" placeholder="Objectif"><button class="primary" onclick="addPosition()">Ajouter</button></div>`;
 }
 function editPosition(i){
-  const p=portfolio[i];
-  p.buy = prompt("Prix d’achat", p.buy)||p.buy;
-  p.qty = prompt("Quantité", p.qty)||p.qty;
-  p.stop = prompt("Stop loss", p.stop)||p.stop;
-  p.target = prompt("Objectif", p.target)||p.target;
-  localStorage.setItem("portfolio",JSON.stringify(portfolio));
-  renderPortfolio(); renderAlerts();
+ const p=portfolio[i];
+ p.buy=prompt("Prix d’achat",p.buy)||p.buy; p.qty=prompt("Quantité",p.qty)||p.qty; p.stop=prompt("Stop loss",p.stop)||p.stop; p.target=prompt("Objectif",p.target)||p.target; p.lev=prompt("Levier",p.lev)||p.lev;
+ localStorage.setItem("portfolio_v3",JSON.stringify(portfolio)); renderPortfolio(); renderAlerts();
 }
 function addPosition(){
-  const p={symbol:ps.value.trim().toUpperCase(),type:pt.value,lev:pl.value,buy:pb.value,qty:pq.value,stop:pst.value,target:pta.value};
-  if(!p.symbol) return;
-  portfolio.push(p);
-  localStorage.setItem("portfolio",JSON.stringify(portfolio));
-  renderPortfolio();
+ const p={symbol:ps.value.trim().toUpperCase(),type:pt.value,lev:pl.value,buy:pb.value,qty:pq.value,stop:pst.value,target:pta.value};
+ if(!p.symbol)return; portfolio.push(p); localStorage.setItem("portfolio_v3",JSON.stringify(portfolio)); renderPortfolio();
 }
 function renderAlerts(){
-  const arr=[];
-  watchlist.forEach(w=>{ const q=getCache(w.symbol)?.data; if(!q)return; const [lab]=signal(q); if(lab!=="Attendre") arr.push(`${w.symbol}: ${lab} — ${aiComment(q)}`); });
-  portfolio.forEach(p=>{ const q=getCache(p.symbol)?.data; if(!q)return; const cur=num(q.close), stop=num(p.stop), target=num(p.target); if(stop&&cur<=stop) arr.push(`${p.symbol}: stop touché ou proche.`); if(target&&cur>=target) arr.push(`${p.symbol}: objectif atteint, envisager prise de profit.`); });
-  document.getElementById("alerts").innerHTML = `<div class="card ai"><b>Alertes IA</b><div class="note">Alertes basées sur prix live chargés, variation du jour, score IA et ton portefeuille.</div></div>` + (arr.map(a=>`<div class="card"><b>${a}</b></div>`).join("") || `<div class="card">Aucune alerte forte pour l’instant.</div>`);
+ const arr=[];
+ rankLoaded().forEach(x=>{
+  const t=x.t;
+  if(t.sig!=="Attendre") arr.push(`${x.w.symbol}: ${t.sig} — ${t.advice}`);
+  if(t.rsi && t.rsi>75) arr.push(`${x.w.symbol}: RSI très élevé, risque de correction.`);
+  if(t.rsi && t.rsi<30) arr.push(`${x.w.symbol}: RSI survendu, rebond possible mais confirmation nécessaire.`);
+ });
+ portfolio.forEach(p=>{
+  const t=technical(p.symbol); if(!t)return; const stop=num(p.stop),target=num(p.target);
+  if(stop&&t.c<=stop)arr.push(`${p.symbol}: stop touché ou proche.`);
+  if(target&&t.c>=target)arr.push(`${p.symbol}: objectif atteint, envisager prise de profit.`);
+ });
+ document.getElementById("alerts").innerHTML=`<div class="card ai"><b>Alertes IA</b><div class="note">Alertes basées sur RSI, SMA, support/résistance, ATR, prix live et portefeuille.</div></div>`+(arr.map(a=>`<div class="card">${a}</div>`).join("")||`<div class="card">Aucune alerte forte pour l’instant.</div>`);
 }
 function show(id,btn){
-  ["scanner","portfolio","alerts"].forEach(x=>document.getElementById(x).classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
-  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
+ ["scanner","daytrading","portfolio","alerts"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+ document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+ btn.classList.add("active");
+ if(id==="daytrading")renderDay(); if(id==="portfolio")renderPortfolio(); if(id==="alerts")renderAlerts();
 }
-renderScanner(); renderPortfolio(); renderAlerts();
+renderScanner(); renderDay(); renderPortfolio(); renderAlerts();
 </script>
 </body>
 </html>
