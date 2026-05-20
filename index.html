@@ -17,7 +17,7 @@
 </div>
 <nav class="nav"><div class="navin"><button class="active" onclick="show('scanner',this)">Scanner</button><button onclick="show('portfolio',this)">Portfolio</button><button onclick="show('alerts',this)">Alertes</button></div></nav>
 <script>
-const symbols=['NVDA','AMD','MU','QCOM','AVGO','AAPL','MSFT','PLTR'];
+const symbols = ["NVDA"]
 let apiKey=localStorage.getItem('TWELVE_API_KEY')||'';
 let market=[];
 let positions=JSON.parse(localStorage.getItem('positions')||'[]');
