@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V11</title>
+<title>AI Trading Cockpit V12</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -83,6 +83,13 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 .tf{border-radius:16px;padding:10px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.10)}
 .tf b{display:block;color:#9fb0c8;font-size:11px;margin-bottom:4px}
 .actionBox{border-radius:18px;padding:13px;background:linear-gradient(135deg,rgba(59,130,246,.16),rgba(16,185,129,.11));border:1px solid rgba(96,165,250,.22);margin-top:10px}
+.agentPlan{border-radius:18px;padding:13px;background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(250,204,21,.08));border:1px solid rgba(16,185,129,.28);margin-top:10px}
+.agentPlan .decision{font-size:18px;font-weight:1000;margin-bottom:8px}
+.levelLine{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.levelLine .box{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);border-radius:14px;padding:10px}
+.levelLine .box small{display:block;color:#94a3b8;font-weight:800;font-size:10px;text-transform:uppercase}
+.levelLine .box b{display:block;margin-top:4px;font-size:14px}
+@media(max-width:720px){.levelLine{grid-template-columns:repeat(2,1fr)}}
 .prob{font-size:24px;font-weight:1000}
 .newsNote{font-size:12px;color:#fbbf24;line-height:1.35;margin-top:8px}
 @media(max-width:900px){.tfBox{grid-template-columns:1fr}}
@@ -94,7 +101,7 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V11</div><div class="title">Trading Scanner</div></div>
+  <div><div class="small">AI Trading Cockpit V12</div><div class="title">Trading Scanner</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -142,7 +149,45 @@ function volumeSignal(a){if(a.length<21)return"n/a";const v=a.at(-1).volume||0,a
 function gapInfo(q){const o=num(q.open),p=num(q.previous_close);return o&&p?(o-p)/p*100:null}
 function technical(s){const q=getC("quote",s)?.data,d=values(getC("daily",s)?.data),i=values(getC("intra",s)?.data),a=d.length?d:null;if(!q||!a)return null;const c=num(q.close)||a.at(-1).close,rsi=RSI(a),rsi5=i.length?RSI(i,14):null,s20=SMA(a,20),s50=SMA(a,50),s200=SMA(a,200),atr=ATR(a),sup=support(a),res=resistance(a),macd=MACD(a);const distSup=sup?((c-sup)/c*100):null,distRes=res?((res-c)/c*100):null,day=num(q.percent_change)||0,gap=gapInfo(q);let score=50,dayScore=50;if(rsi!==null){if(rsi<30)score+=16;else if(rsi<40)score+=9;else if(rsi>75)score-=16;else if(rsi>68)score-=8}if(s20&&c>s20)score+=8;if(s50&&c>s50)score+=8;if(s200&&c>s200)score+=6;if(s20&&s50&&s20>s50)score+=6;if(s20&&s50&&s20<s50)score-=6;if(distSup!==null&&distSup<3)score+=8;if(distRes!==null&&distRes<3)score-=6;if(day>2)score+=4;if(day>5)score-=8;if(day<-4)score+=3;if(volumeSignal(a).includes("fort"))score+=5;if(macd&&macd>0)score+=4;if(rsi5!==null){if(rsi5<30)dayScore+=18;else if(rsi5<40)dayScore+=9;else if(rsi5>75)dayScore-=18;else if(rsi5>68)dayScore-=8}if(day>0)dayScore+=6;if(day>3)dayScore-=8;if(atr&&c&&atr/c*100>4)dayScore-=6;if(gap!==null&&Math.abs(gap)>2)dayScore+=4;score=Math.max(0,Math.min(100,Math.round(score)));dayScore=Math.max(0,Math.min(100,Math.round(dayScore)));let sig="Attendre",tone="wait";const breakout=res&&c>res*.997&&day>0;if(breakout&&score>=62){sig="Breakout";tone="breakout"}else if(rsi!==null&&rsi<35&&distSup!==null&&distSup<6&&score>=58){sig="Zone achat";tone="buy"}else if(dayScore>=68&&rsi5!==null&&rsi5<55){sig="Day trade possible";tone="daytrade"}else if(score>=70&&day<4){sig="Surveiller achat";tone="watch"}else if((rsi!==null&&rsi>70)||(distRes!==null&&distRes<2)||day>5){sig="Prendre profit";tone="sell"}const risk=riskLevel({atr,c,day,rsi,dayScore}),plan=tradePlan({sig,c,atr,sup,res});return{q,c,rsi,rsi5,s20,s50,s200,atr,sup,res,distSup,distRes,score,dayScore,sig,tone,tr:trend(a),vol:volumeSignal(a),day,gap,macd,risk,plan,advice:makeAdvice(sig)}}
 function riskLevel(t){let r=0;if(t.atr&&t.c&&t.atr/t.c*100>4)r+=2;if(Math.abs(t.day)>4)r+=2;if(t.rsi>75||t.rsi<25)r+=1;if(t.dayScore<45)r+=1;return r>=4?["Élevé","red"]:r>=2?["Moyen","amber"]:["Faible/Normal","green"]}
-function tradePlan(t){if(!t.c)return"Plan indisponible.";const stop=t.atr?t.c-t.atr*.7:null,target=t.atr?t.c+t.atr*1.2:null;if(t.sig==="Prendre profit")return`Prendre profit partiel ou relever stop. Résistance proche: ${fmt(t.res)}.`;if(t.sig==="Zone achat")return`Entrée progressive. Stop indicatif: ${fmt(t.sup||stop)}. Objectif: ${fmt(t.res||target)}.`;if(t.sig==="Day trade possible")return`Day trade: objectif rapide ${fmt(target)}, stop serré ${fmt(stop)}.`;if(t.sig==="Breakout")return`Cassure possible. Attendre confirmation volume. Stop sous cassure: ${fmt(t.res||stop)}.`;if(t.sig==="Surveiller achat")return`Surveiller repli vers support ${fmt(t.sup)} ou cassure au-dessus de ${fmt(t.res)}.`;return"Attendre un signal plus clair."}
+
+function clampPrice(n){return n&&isFinite(n)&&n>0?n:null}
+function rangeFmt(a,b){a=clampPrice(a);b=clampPrice(b);if(!a&&!b)return"-";if(!b||Math.abs(a-b)<0.01)return fmt(a);const lo=Math.min(a,b),hi=Math.max(a,b);return fmt(lo)+" – "+fmt(hi)}
+function tradingLevels(t){
+ const c=t.c, atr=t.atr||Math.max(c*0.025,1), sup=t.sup, res=t.res, s20=t.s20;
+ const pullBase=sup||s20||c-atr;
+ const pullLow=pullBase+atr*0.10;
+ const pullHigh=Math.min(c*0.995,pullBase+atr*0.65);
+ const momLow=res?res*1.003:c+atr*0.45;
+ const momHigh=res?res*1.012:c+atr*0.90;
+ let stop=(sup?sup-atr*0.45:c-atr*1.15);
+ let target1=res&&res>c?res:c+atr*1.35;
+ let target2=Math.max(target1+atr*1.1,c+atr*2.25);
+ let preferred="Attendre";
+ let decision="Attendre un meilleur prix";
+ if(t.sig==="Zone achat") {preferred="Rebond support"; decision="Achat progressif possible";}
+ else if(t.sig==="Surveiller achat") {preferred="Repli propre"; decision="Surveiller achat, pas achat immédiat";}
+ else if(t.sig==="Breakout") {preferred="Cassure"; decision="Achat momentum sous condition"; stop=(res||c)-atr*0.65; target1=c+atr*1.4; target2=c+atr*2.4;}
+ else if(t.sig==="Day trade possible") {preferred="Day trade"; decision="Trade court terme possible"; stop=c-atr*0.65; target1=c+atr*0.9; target2=c+atr*1.45;}
+ else if(t.sig==="Prendre profit") {preferred="Pas d’entrée"; decision="Éviter achat / sécuriser gains"; stop=c-atr*0.9; target1=res||c+atr*0.8; target2=c+atr*1.5;}
+ const riskShare=Math.abs(c-stop)||atr;
+ const rr1=(target1-c)/riskShare, rr2=(target2-c)/riskShare;
+ let conv=Math.round((t.score*0.55+t.dayScore*0.25+(multiTFScoreSafe(t)*0.20))/10);
+ if(t.sig==="Prendre profit")conv=Math.max(2,conv-3);
+ if(t.risk&&t.risk[0]==="Élevé")conv=Math.max(1,conv-1);
+ conv=Math.max(1,Math.min(10,conv));
+ let now="";
+ if(t.sig==="Surveiller achat") now=`Le signal est positif mais l’entrée optimale n’est pas forcément maintenant. Je viserais d’abord ${rangeFmt(pullLow,pullHigh)} ou une cassure confirmée ${rangeFmt(momLow,momHigh)}.`;
+ else if(t.sig==="Zone achat") now=`Zone d’achat possible. Entrée progressive autour de ${rangeFmt(pullLow,pullHigh)}, stop ${fmt(stop)}.`;
+ else if(t.sig==="Breakout") now=`Achat uniquement si le prix tient au-dessus de ${rangeFmt(momLow,momHigh)} avec volume. Stop ${fmt(stop)}.`;
+ else if(t.sig==="Day trade possible") now=`Setup court terme. Entrée autour du prix actuel seulement avec stop serré ${fmt(stop)}.`;
+ else if(t.sig==="Prendre profit") now=`Titre tendu : je n’ouvrirais pas une nouvelle position ici. Attendre un repli vers ${rangeFmt(pullLow,pullHigh)}.`;
+ else now=`Pas d’avantage clair. Attendre un retour vers ${rangeFmt(pullLow,pullHigh)} ou une cassure ${rangeFmt(momLow,momHigh)}.`;
+ return {decision,preferred,pullLow,pullHigh,momLow,momHigh,stop,target1,target2,rr1,rr2,conv,now};
+}
+function multiTFScoreSafe(t){return 50}
+function planHTML(t){const p=tradingLevels(t);return `<div class="agentPlan"><div class="decision">Agent entrée : ${p.decision}</div><div class="note">${p.now}</div><div class="levelLine"><div class="box"><small>Entrée idéale</small><b>${rangeFmt(p.pullLow,p.pullHigh)}</b></div><div class="box"><small>Cassure</small><b>${rangeFmt(p.momLow,p.momHigh)}</b></div><div class="box"><small>Stop</small><b>${fmt(p.stop)}</b></div><div class="box"><small>Objectif 1/2</small><b>${fmt(p.target1)} / ${fmt(p.target2)}</b></div></div><div class="note">Conviction : <b>${p.conv}/10</b> · R/R cible 1 : ${isFinite(p.rr1)?p.rr1.toFixed(1):"-"} · R/R cible 2 : ${isFinite(p.rr2)?p.rr2.toFixed(1):"-"}</div></div>`}
+function planMiniHTML(t){const p=tradingLevels(t);return `<div class="note"><b>Entrée idéale:</b> ${rangeFmt(p.pullLow,p.pullHigh)}<br><b>Cassure:</b> ${rangeFmt(p.momLow,p.momHigh)}<br><b>Stop:</b> ${fmt(p.stop)} · <b>Objectif:</b> ${fmt(p.target1)} / ${fmt(p.target2)}<br><b>Conviction:</b> ${p.conv}/10</div>`}
+function tradePlan(t){if(!t.c)return"Plan indisponible.";const p=tradingLevels(t);return `${p.decision}. Entrée idéale: ${rangeFmt(p.pullLow,p.pullHigh)}. Cassure: ${rangeFmt(p.momLow,p.momHigh)}. Stop: ${fmt(p.stop)}. Objectifs: ${fmt(p.target1)} puis ${fmt(p.target2)}. Conviction: ${p.conv}/10.`}
 function makeAdvice(sig){if(sig==="Prendre profit")return"Titre tendu : sécuriser gains ou stop relevé.";if(sig==="Zone achat")return"Zone intéressante mais entrée progressive uniquement.";if(sig==="Breakout")return"Cassure potentielle : confirmer avec volume.";if(sig==="Surveiller achat")return"Setup correct : surveiller repli ou cassure.";if(sig==="Day trade possible")return"Intraday intéressant : stop serré obligatoire.";return"Pas de signal fort : attendre confirmation."}
 function rankLoaded(){return watchlist.map(w=>({w,t:technical(w.symbol),err:getErr(w.symbol)})).filter(x=>x.t).sort((a,b)=>(b.t.score+b.t.dayScore)-(a.t.score+a.t.dayScore))}function allErrors(){return watchlist.map(w=>({w,err:getErr(w.symbol)})).filter(x=>x.err)}
 
@@ -230,8 +275,8 @@ function marketRegime(){
 function filteredList(l){if(currentFilter==="buy")return l.filter(x=>["Zone achat","Surveiller achat","Breakout","Day trade possible"].includes(x.t.sig));if(currentFilter==="sell")return l.filter(x=>x.t.sig==="Prendre profit");if(currentFilter==="day")return l.filter(x=>x.t.dayScore>=60||x.t.sig==="Day trade possible");if(currentFilter==="strong")return l.filter(x=>x.t.score>=70);return l}
 function renderScanner(){const all=rankLoaded(),loaded=filteredList(all),errors=allErrors();document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadAllFull()">Scanner toute la watchlist</button><button class="secondary" onclick="loadNextFull()">Charger prochaine</button><button class="secondary" onclick="refreshLoaded()">Force refresh live</button></div>${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:""}</div><div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div><div class="stockGrid ${compact?'compact':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine”.</div></div>`}</div></div></div>`}
 function summaryAI(l){if(!l.length)return"Charge quelques actions pour obtenir un classement IA.";const top=l[0],sell=l.find(x=>x.t.sig==="Prendre profit"),day=l.find(x=>x.t.dayScore>=68),buy=l.find(x=>["Zone achat","Breakout"].includes(x.t.sig));let s=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). `;if(day)s+=`Meilleur setup day : ${day.w.symbol}. `;if(buy)s+=`Opportunité achat/cassure : ${buy.w.symbol} — ${buy.t.sig}. `;if(sell)s+=`Prise de profit à surveiller : ${sell.w.symbol}. `;s+=`Données quote: cache 30 sec. ${marketRegime()} Utilise Force refresh live si Investing affiche un prix différent.`;return s}
-function rankingTable(l){if(!l.length)return`<div class="note">Charge quelques actions.</div>`;return`<table class="table"><tr><th>Ticker</th><th>Signal</th><th>Swing</th><th>Day</th></tr>${l.slice(0,10).map(x=>`<tr><td>${x.w.symbol}</td><td>${x.t.sig}</td><td>${x.t.score}</td><td>${x.t.dayScore}</td></tr>`).join("")}</table>`}
-function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span></div></div><div class="note"><b>Analyse TF:</b> ${multiTF(w.symbol).label}<br>D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="actionBox"><b>Action IA</b><div class="note">${nextAction(w.symbol,t)}</div></div><div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Refresh ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
+function rankingTable(l){if(!l.length)return`<div class="note">Charge quelques actions.</div>`;return`<table class="table"><tr><th>Ticker</th><th>Signal</th><th>Entrée</th><th>Conv.</th></tr>${l.slice(0,10).map(x=>{const p=tradingLevels(x.t);return`<tr><td>${x.w.symbol}</td><td>${x.t.sig}</td><td>${rangeFmt(p.pullLow,p.pullHigh)}</td><td>${p.conv}/10</td></tr>`}).join("")}</table>`}
+function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span></div></div><div class="note"><b>Analyse TF:</b> ${multiTF(w.symbol).label}<br>D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="actionBox"><b>Action IA</b><div class="note">${nextAction(w.symbol,t)}</div></div>${planHTML(t)}<div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Refresh ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
 async function loadNextFull(){const n=watchlist.find(w=>!technical(w.symbol)&&!getErr(w.symbol));if(!n){alert("Toutes les actions possibles sont chargées ou en erreur.");return}await loadFull(n.symbol,true)}
 async function loadFull(s,force=true){try{clearErr(s);await Promise.allSettled([loadQuote(s,force),loadDaily(s,false),loadIntraday(s,force),loadHourly(s,force)]).then(res=>{const bad=res.find(x=>x.status==="rejected");if(bad&&res.filter(x=>x.status==="fulfilled").length<2)throw bad.reason})}catch(e){setErr(s,e.message||String(e))}renderAll()}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
@@ -247,10 +292,11 @@ function chartReadingHTML(sym){
   return `<div class="card ai"><b>Lecture IA du graphique</b><div class="note">Charge d’abord ${sym} dans le scanner pour que l’IA puisse calculer supports, résistances, RSI, ATR et scénarios.</div></div>`;
  }
  const price=t.c, sup=t.sup, res=t.res, atr=t.atr;
- const buyBreak=res?res*1.003:null;
- const buyPull=sup?sup*1.01:null;
- const stop=sup?sup-(atr||0)*0.4:price-(atr||0)*0.8;
- const target=res?res:price+(atr||0)*1.5;
+ const levels=tradingLevels(t);
+ const buyBreak=levels.momLow;
+ const buyPull=levels.pullLow;
+ const stop=levels.stop;
+ const target=levels.target1;
  let global="ATTENDRE";
  let tone="wait";
  if(["Zone achat","Surveiller achat","Breakout"].includes(t.sig)){global="ACHAT POSSIBLE SOUS CONDITION";tone="buy"}
@@ -286,11 +332,11 @@ function chartReadingHTML(sym){
 
  return `<div class="card ai"><div class="small">LECTURE IA DU GRAPHIQUE</div><div class="bigSignal ${tone}">${global}</div><div class="note">${sym} · Prix ${fmt(price)} · Setup qualité ${grade} · Probabilité IA ${quality.prob}/100 (${quality.label[0]}) · Swing ${t.score}/100 · Day ${t.dayScore}/100</div></div>
  <div class="graphAIGrid">
-  <div class="graphAICard"><h3>Action à faire</h3><div class="prob ${quality.label[1]}">${quality.prob}/100</div><div class="note">${quality.action}</div></div>
+  <div class="graphAICard"><h3>Action à faire</h3><div class="prob ${quality.label[1]}">${levels.conv}/10</div><div class="note">${quality.action}<br><br>${planMiniHTML(t)}</div></div>
  <div class="graphAICard"><h3>Multi-timeframe</h3><div class="tfBox"><div class="tf"><b>Daily</b>${mt.daily??"-"}/100</div><div class="tf"><b>1 heure</b>${mt.hourly??"-"}/100</div><div class="tf"><b>5 minutes</b>${mt.m5??"-"}/100</div></div><div class="note"><b>${mt.label}</b><br>${setups.map(s=>`<span class="pill">${s}</span>`).join("")}</div></div><div class="graphAICard"><h3>Ce que l’IA voit</h3><div class="note">${trendTxt}<br><br>${positionTxt}<br><br>${rsiTxt}<br>${dayTxt}</div></div>
   <div class="graphAICard"><h3>Niveaux clés</h3><div class="levels"><div class="level"><b>Support</b>${fmt(sup)}</div><div class="level"><b>Résistance</b>${fmt(res)}</div><div class="level"><b>ATR</b>${fmt(atr)}</div></div><div class="note">Le support est la zone où les acheteurs peuvent revenir. La résistance est la zone où les vendeurs peuvent bloquer la hausse.</div></div>
-  <div class="graphAICard"><h3>Scénario achat</h3><div class="note">Entrée seulement si rebond propre proche de ${fmt(buyPull)} ou cassure nette au-dessus de ${fmt(buyBreak)} avec volume.</div></div>
-  <div class="graphAICard"><h3>Scénario sortie / danger</h3><div class="note">Si le prix casse sous ${fmt(stop)}, le setup est invalidé. Il vaut mieux sortir ou éviter d’entrer.</div></div>
+  <div class="graphAICard"><h3>Scénario achat</h3><div class="note">Entrée idéale sur repli : ${rangeFmt(levels.pullLow,levels.pullHigh)}. Achat momentum uniquement sur cassure : ${rangeFmt(levels.momLow,levels.momHigh)} avec volume.</div></div>
+  <div class="graphAICard"><h3>Scénario sortie / danger</h3><div class="note">Si le prix casse sous ${fmt(levels.stop)}, le setup est invalidé. Objectifs indicatifs : ${fmt(levels.target1)} puis ${fmt(levels.target2)}.</div></div>
   <div class="graphAICard"><h3>Plan simple</h3><div class="note">${t.plan}<br>Risk/reward indicatif : ${rr?rr.toFixed(2):"-"}.</div></div>
  </div>`;
 }
@@ -340,7 +386,7 @@ function renderAlerts(){const arr=[];rankLoaded().forEach(x=>{const t=x.t;if(t.s
 
 function renderOpportunities(){
  const list=rankLoaded().map(x=>({...x,opp:opportunityScore(x),mt:multiTF(x.w.symbol),setups:detectSetups(x.w.symbol,x.t),quality:setupQuality(x.w.symbol,x.t)})).sort((a,b)=>b.opp-a.opp);
- const block=(title,arr,desc)=>`<div class="card"><b>${title}</b><div class="note">${desc}</div><div class="opportunityGrid" style="margin-top:10px">${arr.map(x=>`<div class="graphAICard"><div class="row"><div><span class="ticker">${x.w.symbol}</span><div class="name">${x.t.sig}</div></div><div class="price">${x.quality.prob}/100<br><span class="${x.quality.label[1]}">${x.quality.label[0]}</span></div></div><div class="tfBox"><div class="tf"><b>Daily</b>${x.mt.daily??"-"}</div><div class="tf"><b>1h</b>${x.mt.hourly??"-"}</div><div class="tf"><b>5m</b>${x.mt.m5??"-"}</div></div><div class="note"><b>Action:</b> ${x.quality.action}<br>${x.setups.map(s=>`<span class="pill">${s}</span>`).join("")}</div></div>`).join("")||"<div class='note'>Aucune opportunité claire.</div>"}</div></div>`;
+ const block=(title,arr,desc)=>`<div class="card"><b>${title}</b><div class="note">${desc}</div><div class="opportunityGrid" style="margin-top:10px">${arr.map(x=>{const p=tradingLevels(x.t);return`<div class="graphAICard"><div class="row"><div><span class="ticker">${x.w.symbol}</span><div class="name">${x.t.sig}</div></div><div class="price">${p.conv}/10<br><span class="${x.quality.label[1]}">${x.quality.label[0]}</span></div></div>${planMiniHTML(x.t)}<div class="tfBox"><div class="tf"><b>Daily</b>${x.mt.daily??"-"}</div><div class="tf"><b>1h</b>${x.mt.hourly??"-"}</div><div class="tf"><b>5m</b>${x.mt.m5??"-"}</div></div><div class="note"><b>Agent:</b> ${x.quality.action}<br>${x.setups.map(s=>`<span class="pill">${s}</span>`).join("")}</div></div>`}).join("")||"<div class='note'>Aucune opportunité claire.</div>"}</div></div>`;
  const topDay=list.filter(x=>x.t.dayScore>=60).slice(0,6);
  const topSwing=list.filter(x=>x.t.score>=60).slice(0,6);
  const rebound=list.filter(x=>x.setups.includes("Proche support")||x.setups.includes("Rebond intraday")||x.setups.includes("Pullback potentiel")).slice(0,6);
@@ -362,7 +408,7 @@ function copilotText(){
  let txt=`Synthèse IA\n\n`;
  txt+=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). Multi-timeframe: ${multiTF(top.w.symbol).label}.\n`;
  if(day)txt+=`Meilleur setup day trading : ${day.w.symbol}. Multi-timeframe: ${multiTF(day.w.symbol).label}. Plan : ${day.t.plan}\n`;
- if(buy)txt+=`Setup achat/cassure à surveiller : ${buy.w.symbol} — ${buy.t.sig}. Plan : ${buy.t.plan}\n`;
+ if(buy){const p=tradingLevels(buy.t);txt+=`Setup achat/cassure à surveiller : ${buy.w.symbol} — ${buy.t.sig}. Entrée idéale ${rangeFmt(p.pullLow,p.pullHigh)}, cassure ${rangeFmt(p.momLow,p.momHigh)}, stop ${fmt(p.stop)}, objectifs ${fmt(p.target1)} / ${fmt(p.target2)}, conviction ${p.conv}/10.\n`;}
  if(sell)txt+=`Action tendue / prise de profit : ${sell.w.symbol}. Plan : ${sell.t.plan}\n`;
  txt+=`\nRègle de prudence : ne pas entrer si le prix live de l’app ne correspond pas au graphique TradingView/Investing. Avec levier, réduire la taille et utiliser un stop.`;
  return txt;
@@ -374,7 +420,7 @@ function renderCopilot(){
 function analyzeOne(){
  const s=document.getElementById("copilotSym").value, t=technical(s);
  if(!t)return;
- document.getElementById("oneAnalysis").innerHTML=`<b>${s}</b><br>Signal: ${t.sig}<br>Plan: ${t.plan}<br>Prix: ${fmt(t.c)} · High: ${fmt(num(t.q.high))} · Low: ${fmt(num(t.q.low))}<br>Risque: ${t.risk[0]}`;
+ document.getElementById("oneAnalysis").innerHTML=`<b>${s}</b><br>Signal: ${t.sig}<br>${planMiniHTML(t)}<br>Prix: ${fmt(t.c)} · High: ${fmt(num(t.q.high))} · Low: ${fmt(num(t.q.low))}<br>Risque: ${t.risk[0]}`;
 }
 function journal(){return JSON.parse(localStorage.getItem("trade_journal_v7")||"[]")}
 function saveJournal(j){localStorage.setItem("trade_journal_v7",JSON.stringify(j))}
