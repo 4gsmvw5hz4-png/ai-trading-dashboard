@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V12</title>
+<title>AI Trading Cockpit V12.1.1</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -83,13 +83,20 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 .tf{border-radius:16px;padding:10px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.10)}
 .tf b{display:block;color:#9fb0c8;font-size:11px;margin-bottom:4px}
 .actionBox{border-radius:18px;padding:13px;background:linear-gradient(135deg,rgba(59,130,246,.16),rgba(16,185,129,.11));border:1px solid rgba(96,165,250,.22);margin-top:10px}
-.agentPlan{border-radius:18px;padding:13px;background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(250,204,21,.08));border:1px solid rgba(16,185,129,.28);margin-top:10px}
-.agentPlan .decision{font-size:18px;font-weight:1000;margin-bottom:8px}
-.levelLine{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
-.levelLine .box{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);border-radius:14px;padding:10px}
-.levelLine .box small{display:block;color:#94a3b8;font-weight:800;font-size:10px;text-transform:uppercase}
-.levelLine .box b{display:block;margin-top:4px;font-size:14px}
-@media(max-width:720px){.levelLine{grid-template-columns:repeat(2,1fr)}}
+.agentPlan{border-radius:18px;padding:12px;background:linear-gradient(135deg,rgba(16,185,129,.16),rgba(250,204,21,.07));border:1px solid rgba(16,185,129,.28);margin-top:10px;overflow:hidden}
+.agentPlan .decision{font-size:15px;font-weight:1000;margin-bottom:8px;line-height:1.2}
+.agentPlan .note{font-size:12px;line-height:1.35}
+.planRows{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.planRow{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.055);border-radius:12px;padding:8px 10px}
+.planRow .k{color:#94a3b8;font-weight:900;font-size:11px;text-transform:uppercase;white-space:nowrap}
+.planRow .v{font-size:14px;font-weight:1000;text-align:right;word-break:keep-all;white-space:normal}
+.planVerdict{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;margin-bottom:8px;font-weight:1000;font-size:12px;background:rgba(250,204,21,.14);border:1px solid rgba(250,204,21,.25);color:#fde68a}
+.planVerdict.buy{background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.32);color:#86efac}
+.planVerdict.sell{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.32);color:#fca5a5}
+.planMini{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.planMini div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:4px}
+.planMini b{color:#dbeafe}
+@media(max-width:720px){.agentPlan .decision{font-size:14px}.planRow{padding:7px 8px}.planRow .v{font-size:13px}}
 .prob{font-size:24px;font-weight:1000}
 .newsNote{font-size:12px;color:#fbbf24;line-height:1.35;margin-top:8px}
 @media(max-width:900px){.tfBox{grid-template-columns:1fr}}
@@ -101,7 +108,7 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V12</div><div class="title">Trading Scanner</div></div>
+  <div><div class="small">AI Trading Cockpit V12.1.1</div><div class="title">Trading Scanner</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -185,8 +192,10 @@ function tradingLevels(t){
  return {decision,preferred,pullLow,pullHigh,momLow,momHigh,stop,target1,target2,rr1,rr2,conv,now};
 }
 function multiTFScoreSafe(t){return 50}
-function planHTML(t){const p=tradingLevels(t);return `<div class="agentPlan"><div class="decision">Agent entrée : ${p.decision}</div><div class="note">${p.now}</div><div class="levelLine"><div class="box"><small>Entrée idéale</small><b>${rangeFmt(p.pullLow,p.pullHigh)}</b></div><div class="box"><small>Cassure</small><b>${rangeFmt(p.momLow,p.momHigh)}</b></div><div class="box"><small>Stop</small><b>${fmt(p.stop)}</b></div><div class="box"><small>Objectif 1/2</small><b>${fmt(p.target1)} / ${fmt(p.target2)}</b></div></div><div class="note">Conviction : <b>${p.conv}/10</b> · R/R cible 1 : ${isFinite(p.rr1)?p.rr1.toFixed(1):"-"} · R/R cible 2 : ${isFinite(p.rr2)?p.rr2.toFixed(1):"-"}</div></div>`}
-function planMiniHTML(t){const p=tradingLevels(t);return `<div class="note"><b>Entrée idéale:</b> ${rangeFmt(p.pullLow,p.pullHigh)}<br><b>Cassure:</b> ${rangeFmt(p.momLow,p.momHigh)}<br><b>Stop:</b> ${fmt(p.stop)} · <b>Objectif:</b> ${fmt(p.target1)} / ${fmt(p.target2)}<br><b>Conviction:</b> ${p.conv}/10</div>`}
+function verdictClass(decision){const d=(decision||"").toLowerCase();if(d.includes("profit")||d.includes("vendre")||d.includes("éviter"))return "sell";if(d.includes("achat")&&!d.includes("pas achat immédiat"))return "buy";return ""}
+function shortDecision(decision){const d=(decision||"").toLowerCase();if(d.includes("profit"))return "PRENDRE PROFIT";if(d.includes("éviter"))return "ÉVITER";if(d.includes("pas achat immédiat"))return "ATTENDRE REPLI";if(d.includes("achat"))return "ACHAT POSSIBLE";return "ATTENDRE"}
+function planHTML(t){const p=tradingLevels(t);return `<div class="agentPlan"><div class="planVerdict ${verdictClass(p.decision)}">${shortDecision(p.decision)}</div><div class="decision">Agent entrée</div><div class="note">${p.now}</div><div class="planRows"><div class="planRow"><span class="k">Entrée</span><span class="v">${rangeFmt(p.pullLow,p.pullHigh)}</span></div><div class="planRow"><span class="k">Cassure</span><span class="v">${rangeFmt(p.momLow,p.momHigh)}</span></div><div class="planRow"><span class="k">Stop</span><span class="v">${fmt(p.stop)}</span></div><div class="planRow"><span class="k">Objectifs</span><span class="v">${fmt(p.target1)} puis ${fmt(p.target2)}</span></div><div class="planRow"><span class="k">Conviction</span><span class="v">${p.conv}/10 · R/R ${isFinite(p.rr1)?p.rr1.toFixed(1):"-"}/${isFinite(p.rr2)?p.rr2.toFixed(1):"-"}</span></div></div></div>`}
+function planMiniHTML(t){const p=tradingLevels(t);return `<div class="planMini"><div><b>Entrée</b><span>${rangeFmt(p.pullLow,p.pullHigh)}</span></div><div><b>Cassure</b><span>${rangeFmt(p.momLow,p.momHigh)}</span></div><div><b>Stop</b><span>${fmt(p.stop)}</span></div><div><b>Objectifs</b><span>${fmt(p.target1)} puis ${fmt(p.target2)}</span></div><div><b>Conviction</b><span>${p.conv}/10</span></div></div>`}
 function tradePlan(t){if(!t.c)return"Plan indisponible.";const p=tradingLevels(t);return `${p.decision}. Entrée idéale: ${rangeFmt(p.pullLow,p.pullHigh)}. Cassure: ${rangeFmt(p.momLow,p.momHigh)}. Stop: ${fmt(p.stop)}. Objectifs: ${fmt(p.target1)} puis ${fmt(p.target2)}. Conviction: ${p.conv}/10.`}
 function makeAdvice(sig){if(sig==="Prendre profit")return"Titre tendu : sécuriser gains ou stop relevé.";if(sig==="Zone achat")return"Zone intéressante mais entrée progressive uniquement.";if(sig==="Breakout")return"Cassure potentielle : confirmer avec volume.";if(sig==="Surveiller achat")return"Setup correct : surveiller repli ou cassure.";if(sig==="Day trade possible")return"Intraday intéressant : stop serré obligatoire.";return"Pas de signal fort : attendre confirmation."}
 function rankLoaded(){return watchlist.map(w=>({w,t:technical(w.symbol),err:getErr(w.symbol)})).filter(x=>x.t).sort((a,b)=>(b.t.score+b.t.dayScore)-(a.t.score+a.t.dayScore))}function allErrors(){return watchlist.map(w=>({w,err:getErr(w.symbol)})).filter(x=>x.err)}
