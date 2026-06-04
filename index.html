@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V13.1 FMP</title>
+<title>AI Trading Cockpit V13.2 Recherche</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -103,12 +103,26 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 
 .scanProgress{margin-top:10px;font-size:12px;color:#dbeafe}.bar{height:8px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin-top:6px}.bar span{display:block;height:100%;background:linear-gradient(90deg,#60a5fa,#34d399);border-radius:999px;transition:width .2s}
 .primary{background:#fff!important;color:#05070a!important;border-color:#fff!important}
+
+.searchPanel{margin-bottom:12px}
+.searchBox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.searchBox input{flex:1;min-width:220px;margin:0}
+.searchBox button{width:auto;margin:0;white-space:nowrap}
+.searchHint{font-size:12px;color:#9fb0c8;margin-top:8px;line-height:1.35}
+.singleWrap{display:block}
+.singleFocus{grid-template-columns:1fr!important}
+.singleFocus>.card{display:grid;grid-template-columns:1.05fr 1fr;gap:10px;align-items:start}
+.singleFocus>.card>.row{grid-column:1 / -1}
+.singleFocus>.card>.actionBox,.singleFocus>.card>.agentPlan{margin-top:0}
+.singleFocus>.card>.note:first-of-type{margin-top:0}
+.singleFocus>.card button{align-self:end}
+@media(max-width:900px){.singleFocus>.card{display:block}.searchBox input{min-width:100%}.searchBox button{flex:1}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V13.1 FMP</div><div class="title">Trading Scanner</div></div>
+  <div><div class="small">AI Trading Cockpit V13.2 Recherche</div><div class="title">Trading Scanner</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -129,8 +143,8 @@ const DEFAULT_WATCHLIST=[{symbol:"NVDA",label:"Nvidia",sector:"AI / Semi-conduct
 const DEFAULT_PORTFOLIO=[{symbol:"YETI",type:"Action",lev:"x1",buy:"",qty:"",target:"",stop:""},{symbol:"QCOM",type:"Mini future",lev:"",buy:"",qty:"",target:"",stop:""},{symbol:"ADBE",type:"Action",lev:"x1",buy:"",qty:"",target:"",stop:""},{symbol:"MSFT",type:"Action",lev:"x1",buy:"",qty:"",target:"",stop:""},{symbol:"XAG/USD",type:"Silver / Future",lev:"",buy:"",qty:"",target:"",stop:""},{symbol:"RACE",type:"Action",lev:"x1",buy:"",qty:"",target:"",stop:""},{symbol:"STLA",type:"Action",lev:"x1",buy:"",qty:"",target:"",stop:""}];
 let watchlist=JSON.parse(localStorage.getItem("watchlist_v6")||"null")||DEFAULT_WATCHLIST;
 let portfolio=JSON.parse(localStorage.getItem("portfolio_v6")||"null")||DEFAULT_PORTFOLIO;
-let compact=localStorage.getItem("compact_v6")==="1", currentFilter="all", selectedChart=localStorage.getItem("selectedChart_v6")||"NVDA";
-let scanState={active:false,done:0,total:0,label:""};let APP_VERSION="v13_1_fmp";if(localStorage.getItem("app_version")!==APP_VERSION){Object.keys(localStorage).filter(k=>k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));localStorage.setItem("app_version",APP_VERSION)}
+let compact=localStorage.getItem("compact_v6")==="1", currentFilter="all", searchQuery=localStorage.getItem("search_v13")||"", selectedChart=localStorage.getItem("selectedChart_v6")||"NVDA";
+let scanState={active:false,done:0,total:0,label:""};let APP_VERSION="v13_2_search";if(localStorage.getItem("app_version")!==APP_VERSION){Object.keys(localStorage).filter(k=>k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));localStorage.setItem("app_version",APP_VERSION)}
 function saveWatch(){localStorage.setItem("watchlist_v6",JSON.stringify(watchlist))}function savePort(){localStorage.setItem("portfolio_v6",JSON.stringify(portfolio))}
 function fmpKey(){return localStorage.getItem("FMP_API_KEY")||localStorage.getItem("TWELVE_API_KEY")||""}
 function apiKey(){return localStorage.getItem("TWELVE_API_KEY")||""}
