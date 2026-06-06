@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V15.6 Hors séance</title>
+<title>AI Trading Cockpit V16 Agent Marché</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -121,12 +121,25 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 .extLine{display:block;margin-top:3px;font-size:11px;font-weight:900;line-height:1.15}
 .extLine.extNeg{color:#fb7185}.extLine.extPos{color:#34d399}.regularLine{display:block;margin-top:3px;font-size:10px;color:#9fb0c8;line-height:1.15}
 .extAlert{margin-top:7px;border:1px solid rgba(251,113,133,.36);background:rgba(251,113,133,.13);color:#fecdd3;border-radius:12px;padding:8px;font-size:12px;font-weight:900}
+
+.marketPanel .oppItem{border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.18);border-radius:14px;padding:10px;margin-top:8px}
+.marketPanel .oppTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.marketPanel .oppSym{font-weight:1000;font-size:16px}
+.marketPanel .oppPlan{font-size:12px;color:#dbeafe;line-height:1.35;margin-top:7px}
+.marketPanel .oppAction{font-weight:1000;font-size:12px;border-radius:999px;padding:4px 8px;background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.25);white-space:nowrap}
+.marketPanel .oppAction.buy{background:rgba(16,185,129,.16);border-color:rgba(16,185,129,.32);color:#86efac}
+.marketPanel .oppAction.wait{background:rgba(250,204,21,.14);border-color:rgba(250,204,21,.32);color:#fde68a}
+.marketPanel .oppAction.sell{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.32);color:#fca5a5}
+.marketPanel .miniBtns{display:flex;gap:6px;margin-top:8px}
+.marketPanel .miniBtns button{padding:7px 8px;font-size:11px;border-radius:10px}
+.marketNote{font-size:12px;color:#93a4bd;line-height:1.35;margin-top:8px}
+.marketBadge{display:inline-block;border-radius:999px;padding:3px 6px;margin:2px 2px 0 0;font-size:10px;font-weight:900;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V15.6 Hors séance</div><div class="title">Trading Scanner</div><div class="small">Scan FMP stable + hors séance FMP + saisie manuelle</div></div>
+  <div><div class="small">AI Trading Cockpit V16 Agent Marché</div><div class="title">Trading Scanner</div><div class="small">Agent marché : opportunités globales + plans entrée/stop/objectifs</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -148,7 +161,7 @@ const DEFAULT_PORTFOLIO=[{symbol:"YETI",type:"Action",lev:"x1",buy:"",qty:"",tar
 let watchlist=JSON.parse(localStorage.getItem("watchlist_v6")||"null")||DEFAULT_WATCHLIST;
 let portfolio=JSON.parse(localStorage.getItem("portfolio_v6")||"null")||DEFAULT_PORTFOLIO;
 let compact=localStorage.getItem("compact_v6")==="1", currentFilter="all", searchQuery=localStorage.getItem("search_v13")||"", selectedChart=localStorage.getItem("selectedChart_v6")||"NVDA";
-let scanState={active:false,done:0,total:0,label:""};let APP_VERSION="v15_5_extended";if(localStorage.getItem("app_version")!==APP_VERSION){Object.keys(localStorage).filter(k=>k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));localStorage.setItem("app_version",APP_VERSION)}
+let scanState={active:false,done:0,total:0,label:""};let marketIA=JSON.parse(localStorage.getItem("market_ia_v16")||"[]");let APP_VERSION="v16_market_agent";if(localStorage.getItem("app_version")!==APP_VERSION){Object.keys(localStorage).filter(k=>k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));localStorage.setItem("app_version",APP_VERSION)}
 function saveWatch(){localStorage.setItem("watchlist_v6",JSON.stringify(watchlist))}function savePort(){localStorage.setItem("portfolio_v6",JSON.stringify(portfolio))}
 function fmpKey(){return localStorage.getItem("FMP_API_KEY")||localStorage.getItem("TWELVE_API_KEY")||""}
 function apiKey(){return localStorage.getItem("TWELVE_API_KEY")||""}
@@ -485,8 +498,81 @@ function marketRegime(){
  return risk+" "+a.join(" · ");
 }
 
+
+function marketActionLabel(sym,t){
+ const p=tradingLevels(t), ext=Math.abs(num(t.q.extended_percent)||0);
+ if(t.sig==="Prendre profit")return {txt:"ÉVITER / ALLÉGER",cls:"sell"};
+ if(t.sig==="Zone achat"||t.sig==="Breakout")return {txt:"ACHAT POSSIBLE",cls:"buy"};
+ if(t.sig==="Surveiller achat")return {txt:"ATTENDRE REPLI",cls:"wait"};
+ if(t.sig==="Day trade possible")return {txt:"TRADE COURT",cls:"wait"};
+ if(ext>=5)return {txt:"VOLATILITÉ À SURVEILLER",cls:"wait"};
+ return {txt:"ATTENDRE",cls:"wait"};
+}
+function marketScore(sym,t){
+ let s=opportunityScore({w:{symbol:sym},t});
+ const ext=num(t.q.extended_percent)||0;
+ if(Math.abs(ext)>=3)s+=6;
+ if(ext<=-6 && t.distSup!==null && t.distSup<8)s+=8;
+ if(t.sig==="Zone achat"||t.sig==="Breakout")s+=8;
+ if(t.sig==="Prendre profit")s-=10;
+ if(t.risk&&t.risk[0]==="Élevé")s-=5;
+ return Math.max(0,Math.min(100,Math.round(s)));
+}
+function marketReason(sym,t){
+ const bits=[];
+ if(t.q.extended_price)bits.push(`${t.q.extended_label||"Hors séance"} ${pct(t.q.extended_percent)}`);
+ if(t.day!==null)bits.push(`jour ${pct(t.day)}`);
+ if(t.vol&&t.vol!=="Quote FMP")bits.push(t.vol);
+ if(t.distSup!==null&&t.distSup<3)bits.push("proche support");
+ if(t.distRes!==null&&t.distRes<3)bits.push("proche résistance");
+ if(t.score>=70)bits.push("score swing fort");
+ if(t.dayScore>=65)bits.push("score court terme fort");
+ return bits.slice(0,4);
+}
+function marketIAHTML(){
+ if(!marketIA.length)return `<div class="marketNote">Clique “Scanner marché IA”. L’agent cherche les movers FMP, volumes, hausses/baisses et sorties hors séance, puis calcule entrée/stop/objectifs. Il ne passe aucun ordre.</div>`;
+ return marketIA.slice(0,8).map(o=>{
+   const t=technical(o.symbol); if(!t)return "";
+   const p=tradingLevels(t), a=marketActionLabel(o.symbol,t), rs=marketReason(o.symbol,t);
+   return `<div class="oppItem"><div class="oppTop"><div><span class="oppSym">${o.symbol}</span><div class="name">${o.name||o.symbol}</div></div><div class="oppAction ${a.cls}">${a.txt}</div></div><div class="oppPlan"><b>Plan IA :</b> entrée ${rangeFmt(p.pullLow,p.pullHigh)} · cassure ${rangeFmt(p.momLow,p.momHigh)} · stop ${fmt(p.stop)} · objectifs ${fmt(p.target1)} puis ${fmt(p.target2)} · conviction ${p.conv}/10</div><div>${rs.map(x=>`<span class="marketBadge">${x}</span>`).join("")}</div><div class="miniBtns"><button class="secondary" onclick="marketFocus('${o.symbol}')">Analyser</button><button class="secondary" onclick="openChart('${o.symbol}')">Graph</button></div></div>`;
+ }).join("");
+}
+function addMarketTopToWatch(){
+ marketIA.slice(0,10).forEach(o=>{if(!watchlist.some(w=>w.symbol===o.symbol))watchlist.push({symbol:o.symbol,label:o.name||o.symbol,sector:"Marché IA"})});
+ saveWatch();renderAll();
+}
+function marketFocus(sym){
+ if(!watchlist.some(w=>w.symbol===sym)){watchlist.unshift({symbol:sym,label:sym,sector:"Marché IA"});saveWatch();}
+ searchQuery=sym;localStorage.setItem("search_v13",sym);renderAll();
+}
+async function scanMarketIA(){
+ scanState={active:true,done:0,total:3,label:"Scan marché IA"};renderAll();
+ const endpoints=["/api/v3/stock_market/gainers","/api/v3/stock_market/losers","/api/v3/stock_market/actives"];
+ let rows=[];
+ for(const ep of endpoints){
+   try{const data=await fmpFetch(ep); if(Array.isArray(data))rows=rows.concat(data);}
+   catch(e){console.warn("market endpoint",ep,e)}
+   scanState.done++;renderScanner();
+ }
+ const seen=new Set();
+ const syms=[];
+ rows.forEach(x=>{const s=(x.symbol||x.ticker||"").toUpperCase(); if(!s||seen.has(s)||s.includes("^")||s.includes("/")||s.length>8)return; seen.add(s); syms.push(s);});
+ const limited=syms.slice(0,45);
+ scanState={active:true,done:0,total:limited.length,label:"Cotations marché"};renderAll();
+ for(let i=0;i<limited.length;i+=20){
+   const chunk=limited.slice(i,i+20);
+   try{await loadFmpBatch(chunk)}catch(e){console.warn(e)}
+   scanState.done=Math.min(limited.length,i+20);renderScanner();
+ }
+ // Hors séance uniquement sur les 15 premiers pour éviter lenteurs/quota
+ try{await loadExtendedForSymbols(limited.slice(0,15))}catch(e){}
+ const scored=limited.map(s=>{const t=technical(s);const row=rows.find(r=>(r.symbol||r.ticker||"").toUpperCase()===s)||{};return t?{symbol:s,name:row.name||t.q.name||s,score:marketScore(s,t),sig:t.sig}:null}).filter(Boolean).sort((a,b)=>b.score-a.score);
+ marketIA=scored.slice(0,20);localStorage.setItem("market_ia_v16",JSON.stringify(marketIA));
+ scanState={active:false,done:0,total:0,label:""};renderAll();
+}
+
 function filteredList(l){if(currentFilter==="buy")return l.filter(x=>["Zone achat","Surveiller achat","Breakout","Day trade possible"].includes(x.t.sig));if(currentFilter==="sell")return l.filter(x=>x.t.sig==="Prendre profit");if(currentFilter==="day")return l.filter(x=>x.t.dayScore>=60||x.t.sig==="Day trade possible");if(currentFilter==="strong")return l.filter(x=>x.t.score>=70);return l}
-function renderScanner(){const all=rankLoaded(),loaded=filteredList(all),errors=allErrors();document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadAllFull()">Scanner rapide FMP</button><button class="secondary" onclick="loadNextFull()">Charger prochaine</button><button class="secondary" onclick="refreshLoaded()">Force refresh live</button></div>${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:""}</div><div class="card"><b>Prix hors séance</b><div class="kv">Si FMP/Yahoo ne donne pas le pré-market, copie le prix Investing ici. L’agent utilisera ce prix.</div><input id="manualExtSymbol" placeholder="Ticker ex: AVGO" value="${searchQuery||''}"><input id="manualExtPrice" placeholder="Prix hors séance ex: 385.08"><button class="secondary" onclick="forceExtendedOne()">Chercher hors séance auto</button><button class="primary" onclick="applyManualExtended()">Appliquer prix hors séance</button><button class="danger" onclick="clearManualExtended()">Effacer hors séance</button></div><div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div><div class="stockGrid ${compact?'compact':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine”.</div></div>`}</div></div></div>`}
+function renderScanner(){const all=rankLoaded(),loaded=filteredList(all),errors=allErrors();document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadAllFull()">Scanner rapide FMP</button><button class="secondary" onclick="loadNextFull()">Charger prochaine</button><button class="secondary" onclick="refreshLoaded()">Force refresh live</button></div>${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:""}</div><div class="card"><b>Prix hors séance</b><div class="kv">Si FMP/Yahoo ne donne pas le pré-market, copie le prix Investing ici. L’agent utilisera ce prix.</div><input id="manualExtSymbol" placeholder="Ticker ex: AVGO" value="${searchQuery||''}"><input id="manualExtPrice" placeholder="Prix hors séance ex: 385.08"><button class="secondary" onclick="forceExtendedOne()">Chercher hors séance auto</button><button class="primary" onclick="applyManualExtended()">Appliquer prix hors séance</button><button class="danger" onclick="clearManualExtended()">Effacer hors séance</button></div><div class="card ai marketPanel"><b>Agent marché IA</b><div class="kv">Scanne les movers du marché, pas seulement ta watchlist. L’agent classe les meilleures opportunités et donne entrée, stop, objectifs.</div><button class="primary" onclick="scanMarketIA()">Scanner marché IA</button><button class="secondary" onclick="addMarketTopToWatch()">Ajouter Top 10</button>${marketIAHTML()}</div><div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div><div class="stockGrid ${compact?'compact':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine”.</div></div>`}</div></div></div>`}
 function summaryAI(l){if(!l.length)return"Charge quelques actions pour obtenir un classement IA.";const top=l[0],sell=l.find(x=>x.t.sig==="Prendre profit"),day=l.find(x=>x.t.dayScore>=68),buy=l.find(x=>["Zone achat","Breakout"].includes(x.t.sig));let s=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). `;if(day)s+=`Meilleur setup day : ${day.w.symbol}. `;if(buy)s+=`Opportunité achat/cassure : ${buy.w.symbol} — ${buy.t.sig}. `;if(sell)s+=`Prise de profit à surveiller : ${sell.w.symbol}. `;s+=`Données quote: scan rapide FMP. Analyse détaillée Twelve Data uniquement sur demande. ${marketRegime()} Utilise Force refresh live si Investing affiche un prix différent.`;return s}
 function rankingTable(l){if(!l.length)return`<div class="note">Charge quelques actions.</div>`;return`<table class="table"><tr><th>Ticker</th><th>Signal</th><th>Entrée</th><th>Conv.</th></tr>${l.slice(0,10).map(x=>{const p=tradingLevels(x.t);return`<tr><td>${x.w.symbol}</td><td>${x.t.sig}</td><td>${rangeFmt(p.pullLow,p.pullHigh)}</td><td>${p.conv}/10</td></tr>`}).join("")}</table>`}
 function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span>${extendedHTML(t.q)}</div></div>${extendedAlertHTML(t.q)}<div class="note"><b>Analyse TF:</b> ${multiTF(w.symbol).label}<br>D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="actionBox"><b>Action IA</b><div class="note">${nextAction(w.symbol,t)}</div></div>${planHTML(t)}<div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Analyse détaillée ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
