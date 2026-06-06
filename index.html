@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V15.3 Stable</title>
+<title>AI Trading Cockpit V15.4 Secours Stable</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -117,23 +117,12 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 .singleFocus>.card>.note:first-of-type{margin-top:0}
 .singleFocus>.card button{align-self:end}
 @media(max-width:900px){.singleFocus>.card{display:block}.searchBox input{min-width:100%}.searchBox button{flex:1}}
-
-
-.afterLine{display:block;font-size:11px;color:#cbd5e1;margin-top:3px;font-weight:800}
-.afterLine .afterPos{color:#34d399}.afterLine .afterNeg{color:#fb7185}.afterLine .afterNeu{color:#cbd5e1}
-.agentDash{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
-.agentItem{border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.20);border-radius:14px;padding:10px}
-.agentItem b{font-size:12px}.agentItem .note{margin-top:5px}
-.agentMiniList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.agentMiniRow{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:5px;font-size:12px}
-.focusHero{margin-bottom:12px;background:linear-gradient(135deg,rgba(59,130,246,.22),rgba(16,185,129,.14));border-color:rgba(96,165,250,.25)}
-.focusHero .bigSignal{font-size:24px}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V15.3 Stable</div><div class="title">Trading Scanner</div></div>
+  <div><div class="small">AI Trading Cockpit V15.4 Secours Stable</div><div class="title">Trading Scanner</div><div class="small">Mode secours stable — scan FMP fonctionnel</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -155,16 +144,16 @@ const DEFAULT_PORTFOLIO=[{symbol:"YETI",type:"Action",lev:"x1",buy:"",qty:"",tar
 let watchlist=JSON.parse(localStorage.getItem("watchlist_v6")||"null")||DEFAULT_WATCHLIST;
 let portfolio=JSON.parse(localStorage.getItem("portfolio_v6")||"null")||DEFAULT_PORTFOLIO;
 let compact=localStorage.getItem("compact_v6")==="1", currentFilter="all", searchQuery=localStorage.getItem("search_v13")||"", selectedChart=localStorage.getItem("selectedChart_v6")||"NVDA";
-let scanState={active:false,done:0,total:0,label:""};let APP_VERSION="v15_3_stable_fmp";if(localStorage.getItem("app_version")!==APP_VERSION){Object.keys(localStorage).filter(k=>k.startsWith("err_")||k.startsWith("after_")||k.startsWith("after_yahoo_")).forEach(k=>localStorage.removeItem(k));localStorage.setItem("app_version",APP_VERSION)}
+let scanState={active:false,done:0,total:0,label:""};let APP_VERSION="v13_2_search";if(localStorage.getItem("app_version")!==APP_VERSION){Object.keys(localStorage).filter(k=>k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));localStorage.setItem("app_version",APP_VERSION)}
 function saveWatch(){localStorage.setItem("watchlist_v6",JSON.stringify(watchlist))}function savePort(){localStorage.setItem("portfolio_v6",JSON.stringify(portfolio))}
 function fmpKey(){return localStorage.getItem("FMP_API_KEY")||localStorage.getItem("TWELVE_API_KEY")||""}
 function apiKey(){return localStorage.getItem("TWELVE_API_KEY")||""}
 function setApiKey(){
  const f=prompt("Colle ta clé Financial Modeling Prep (FMP) pour le scan rapide :",fmpKey());
  if(f!==null)localStorage.setItem("FMP_API_KEY",f.trim());
- const t=prompt("Optionnel : clé Twelve Data. Conseil : laisse vide si tu as des erreurs de crédits. Le scan principal fonctionne avec FMP :",apiKey());
+ const t=prompt("Optionnel : colle ta clé Twelve Data pour les analyses détaillées RSI/MACD/ATR. Laisse vide si tu veux utiliser seulement FMP rapide :",apiKey());
  if(t!==null)localStorage.setItem("TWELVE_API_KEY",t.trim());
- alert("Clés enregistrées. En V15.3, le scan principal et l'analyse légère utilisent FMP pour éviter les limites Twelve Data.");
+ alert("Clés enregistrées. Le scan global utilise FMP; Twelve Data ne sert plus qu'aux analyses détaillées.");
 }
 function toggleCompact(){compact=!compact;localStorage.setItem("compact_v6",compact?"1":"0");renderAll()}
 function ck(t,s){return t+"_"+s.replaceAll("/","_")}function getC(t,s){try{return JSON.parse(localStorage.getItem(ck(t,s))||"null")}catch(e){return null}}function setC(t,s,d){localStorage.setItem(ck(t,s),JSON.stringify({time:Date.now(),data:d}))}
@@ -189,120 +178,6 @@ function isFmpSupported(sym){return !sym.includes("/")}
 function normalizeFmpQuote(x){
  return {symbol:x.symbol,name:x.name||x.symbol,close:num(x.price),percent_change:num(x.changesPercentage),change:num(x.change),high:num(x.dayHigh),low:num(x.dayLow),open:num(x.open),previous_close:num(x.previousClose),volume:num(x.volume),priceAvg50:num(x.priceAvg50),priceAvg200:num(x.priceAvg200),marketCap:num(x.marketCap),source:"FMP"};
 }
-function normalizeAftermarketQuote(sym,row,kind="Hors séance"){
- row=row||{};
- const q=getC("quote",sym)?.data||{};
- const regular=num(q.previous_close)||num(q.previousClose)||num(q.regularMarketPreviousClose)||num(q.close)||num(q.price)||null;
- const bid=num(row.bid)||num(row.bidPrice)||num(row.bid_price)||num(row.bidSizePrice)||num(row.bidprice);
- const ask=num(row.ask)||num(row.askPrice)||num(row.ask_price)||num(row.askSizePrice)||num(row.askprice);
- const mid=(bid&&ask)?(bid+ask)/2:null;
- const candidates=[row.price,row.last,row.lastPrice,row.lastSalePrice,row.lastSale,row.tradePrice,row.afterHoursPrice,row.afterHourPrice,row.preMarketPrice,row.premarketPrice,row.preMarket,row.postMarketPrice,row.postmarketPrice,row.extendedPrice,row.extendedMarketPrice,row.fmpLast,row.close,row.value,mid,bid,ask];
- const p=candidates.map(num).find(x=>x&&isFinite(x)&&x>0)||null;
- if(!p)return null;
- const ch=regular?(p-regular):(num(row.change)||num(row.changeValue)||null);
- const cp=regular?(ch/regular*100):(num(row.changesPercentage)||num(row.changePercentage)||num(row.percent_change)||num(row.percentChange));
- const ts=row.timestamp||row.time||row.datetime||row.date||row.lastSaleTime||row.updatedAt||"";
- return {symbol:sym,price:p,change:ch,changesPercentage:cp,bid,ask,volume:num(row.volume)||num(row.size)||num(row.lastSaleSize),kind,time:ts,raw:row};
-}
-async function loadYahooPrePost(sym,force=false){
- if(!isFmpSupported(sym))return null;
- const c=getC("after_yahoo",sym); if(!force&&fresh(c,0.5))return c.data;
- try{
-   const r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1m&range=1d&includePrePost=true`,{cache:"no-store"});
-   const j=await r.json();
-   const res=j?.chart?.result?.[0];
-   const meta=res?.meta||{};
-   const closes=res?.indicators?.quote?.[0]?.close||[];
-   const price=closes.slice().reverse().find(v=>v!==null&&v!==undefined) || meta.postMarketPrice || meta.preMarketPrice || meta.regularMarketPrice;
-   const regular=num(meta.previousClose)||num(meta.chartPreviousClose)||num(meta.regularMarketPreviousClose)||num(meta.regularMarketPrice)||num(getC("quote",sym)?.data?.previous_close)||null;
-   const p=num(price);
-   if(!p||!regular)return null;
-   const nowSec=Math.floor(Date.now()/1000);
-   const pre=meta.currentTradingPeriod?.pre||{};
-   const post=meta.currentTradingPeriod?.post||{};
-   let kind="Hors séance Yahoo";
-   if(pre.start&&nowSec>=pre.start&&nowSec<=pre.end)kind="Pré-market Yahoo";
-   else if(post.start&&nowSec>=post.start&&nowSec<=post.end)kind="After-hours Yahoo";
-   else if(Math.abs((p-regular)/regular*100)>0.3)kind="Hors séance Yahoo";
-   const out={symbol:sym,price:p,change:p-regular,changesPercentage:(p-regular)/regular*100,bid:null,ask:null,volume:null,kind,time:new Date().toLocaleTimeString("fr-FR"),raw:{meta}};
-   setC("after_yahoo",sym,out);
-   return out;
- }catch(e){return null}
-}
-async function loadFmpAftermarket(sym,force=false){
- if(!isFmpSupported(sym))return null;
- const c=getC("after",sym); if(!force&&fresh(c,0.5))return c.data;
- const attempts=[
-   [`/stable/aftermarket-quote?symbol=${encodeURIComponent(sym)}`,"Hors séance FMP"],
-   [`/stable/aftermarket-trade?symbol=${encodeURIComponent(sym)}`,"Dernier trade hors séance FMP"],
-   [`/stable/quote-short?symbol=${encodeURIComponent(sym)}`,"Quote short FMP"]
- ];
- for(const [path,kind] of attempts){
-   try{
-     const data=await fmpFetch(path);
-     const row=Array.isArray(data)?data[0]:data;
-     const n=normalizeAftermarketQuote(sym,row,kind);
-     if(n){setC("after",sym,n);return n}
-   }catch(e){ /* endpoint may be restricted on some FMP plans: ignore silently */ }
- }
- const y=await loadYahooPrePost(sym,force);
- if(y){setC("after",sym,y);return y}
- return null;
-}
-async function loadFmpAftermarketMany(syms,{force=false}={}){
- const supported=syms.filter(isFmpSupported);
- const chunks=[];
- for(let i=0;i<supported.length;i+=20)chunks.push(supported.slice(i,i+20));
- for(const ch of chunks){
-   if(!force && ch.every(s=>fresh(getC("after",s),0.5)))continue;
-   try{
-     const data=await fmpFetch(`/stable/batch-aftermarket-quote?symbols=${encodeURIComponent(ch.join(','))}`);
-     (Array.isArray(data)?data:[]).forEach(row=>{
-       const sym=(row.symbol||row.ticker||"").toUpperCase();
-       if(!sym)return;
-       const n=normalizeAftermarketQuote(sym,row,"Hors séance");
-       if(n)setC("after",sym,n);
-     });
-   }catch(e){
-     try{
-       const data=await fmpFetch(`/stable/batch-aftermarket-trade?symbols=${encodeURIComponent(ch.join(','))}`);
-       (Array.isArray(data)?data:[]).forEach(row=>{
-         const sym=(row.symbol||row.ticker||"").toUpperCase();
-         if(!sym)return;
-         const n=normalizeAftermarketQuote(sym,row,"Dernier trade hors séance");
-         if(n)setC("after",sym,n);
-       });
-     }catch(e2){
-       await Promise.allSettled(ch.map(s=>loadFmpAftermarket(s,force)));
-     }
-   }
-   // Fallback Yahoo pour pré-market/after-hours lorsque FMP ne fournit pas le prix étendu.
-   await Promise.allSettled(ch.map(async s=>{
-     const current=getC("after",s)?.data;
-     if(!current || Math.abs(num(current.changesPercentage)||0)<0.5){
-       const y=await loadYahooPrePost(s,force);
-       if(y && Math.abs(num(y.changesPercentage)||0) > Math.abs(num(current?.changesPercentage)||0)) setC("after",s,y);
-     }
-   }));
- }
-}
-function activeAfter(sym){
- const a=getC("after",sym)?.data;
- const y=getC("after_yahoo",sym)?.data;
- if(a&&a.price&&y&&y.price&&Math.abs(num(y.changesPercentage)||0)>Math.abs(num(a.changesPercentage)||0))return y;
- if(a&&a.price)return a;
- if(y&&y.price)return y;
- return null;
-}
-
-function afterWarningHTML(sym){const a=activeAfter(sym);if(!a||a.changesPercentage===null||a.changesPercentage===undefined||Math.abs(a.changesPercentage)<3)return "";const tone=a.changesPercentage<0?"red":"green";return `<div class="warn ${tone}"><b>Mouvement hors séance important :</b> ${pct(a.changesPercentage)}. Les niveaux IA utilisent ce prix hors séance, pas seulement la clôture.</div>`}
-function afterLineHTML(sym,t){
- const a=activeAfter(sym);
- const prev=num(t?.q?.previous_close)||num(t?.q?.close);
- if(a&&a.price){const ch=a.changesPercentage;const tone=(ch||0)>0?"afterPos":(ch||0)<0?"afterNeg":"afterNeu";return `<span class="afterLine">${a.kind||"Hors séance"}: <span class="${tone}">${fmt(a.price)} ${ch!==null&&ch!==undefined?`(${pct(ch)})`:""}</span></span>`}
- if(prev)return `<span class="afterLine">Clôture précédente: ${fmt(prev)}</span>`;
- return "";
-}
 async function loadFmpBatch(syms){
  const supported=syms.filter(isFmpSupported);
  const unsupported=syms.filter(s=>!isFmpSupported(s));
@@ -323,8 +198,6 @@ async function scanFastFmp({force=false}={}){
  try{
    if(force)syms.forEach(s=>localStorage.removeItem(ck("quote",s)));
    await loadFmpBatch(syms);
-   // V15.3: scan global ultra-rapide uniquement via FMP quote.
-   // Le pré-market/hors séance se charge à la demande pour une action ciblée.
    scanState.done=syms.length;
  }catch(e){syms.forEach(s=>setErr(s,e.message||String(e)))}
  scanState.active=false;renderAll();
@@ -345,23 +218,15 @@ function trend(a){const s20=SMA(a,20),s50=SMA(a,50),s200=SMA(a,200),c=a.at(-1)?.
 function volumeSignal(a){if(a.length<21)return"n/a";const v=a.at(-1).volume||0,avg=a.slice(-21,-1).reduce((x,y)=>x+(y.volume||0),0)/20;if(!avg)return"n/a";if(v>avg*1.8)return"Volume très fort";if(v>avg*1.25)return"Volume supérieur";if(v<avg*.7)return"Volume faible";return"Volume normal"}
 function gapInfo(q){const o=num(q.open),p=num(q.previous_close);return o&&p?(o-p)/p*100:null}
 function technical(s){
- let q=getC("quote",s)?.data;const d=values(getC("daily",s)?.data),i=values(getC("intra",s)?.data),a=d.length?d:null;
+ const q=getC("quote",s)?.data,d=values(getC("daily",s)?.data),i=values(getC("intra",s)?.data),a=d.length?d:null;
  if(!q)return null;
- const after=activeAfter(s);
- let c=num(q.close)||(a?a.at(-1).close:null); if(!c)return null;
- let day=num(q.percent_change)||0;
- if(after&&after.price){
-   const prev=num(q.previous_close)||num(q.close)||c;
-   c=after.price;
-   day=after.changesPercentage!==null&&after.changesPercentage!==undefined?after.changesPercentage:((c-prev)/prev*100);
-   q={...q,close:c,percent_change:day,high:Math.max(num(q.high)||c,c),low:Math.min(num(q.low)||c,c),afterPrice:after.price,afterChangePercent:day};
- }
+ const c=num(q.close)||(a?a.at(-1).close:null); if(!c)return null;
  const quick=!a;
  const rsi=quick?null:RSI(a),rsi5=i.length?RSI(i,14):null;
  const s20=quick?num(q.priceAvg50):SMA(a,20),s50=quick?num(q.priceAvg50):SMA(a,50),s200=quick?num(q.priceAvg200):SMA(a,200);
  const atr=quick?Math.max((num(q.high)-num(q.low))||c*0.025,c*0.012):ATR(a);
  const sup=quick?(num(q.low)||c-atr):support(a),res=quick?(num(q.high)||c+atr):resistance(a),macd=quick?null:MACD(a);
- const distSup=sup?((c-sup)/c*100):null,distRes=res?((res-c)/c*100):null,gap=gapInfo(q);
+ const distSup=sup?((c-sup)/c*100):null,distRes=res?((res-c)/c*100):null,day=num(q.percent_change)||0,gap=gapInfo(q);
  let score=50,dayScore=50;
  if(!quick&&rsi!==null){if(rsi<30)score+=16;else if(rsi<40)score+=9;else if(rsi>75)score-=16;else if(rsi>68)score-=8}
  if(s20&&c>s20)score+=8;if(s50&&c>s50)score+=8;if(s200&&c>s200)score+=6;if(!quick&&s20&&s50&&s20>s50)score+=6;if(!quick&&s20&&s50&&s20<s50)score-=6;
@@ -506,64 +371,18 @@ function marketRegime(){
  return risk+" "+a.join(" · ");
 }
 
-
-function normSearch(v){return (v||"").trim().toUpperCase()}
-function searchMatchesItem(w,q){q=normSearch(q);if(!q)return true;return `${w.symbol} ${w.label||""} ${w.sector||""}`.toUpperCase().includes(q)}
-function searchFilteredRows(rows){const q=normSearch(searchQuery);if(!q)return rows;return rows.filter(x=>searchMatchesItem(x.w,q))}
-function searchPanelHTML(){
- const q=(searchQuery||"").replace(/"/g,"&quot;");
- return `<div class="card searchPanel"><b>🔍 Analyse Action IA</b><div class="searchHint">Tape un ticker ou un nom : QCOM, Qualcomm, NVDA, Netflix, SNOW… Une seule action s’affichera en carte large.</div><div class="searchBox"><input id="searchTicker" value="${q}" placeholder="Rechercher / analyser une action" onkeydown="if(event.key==='Enter')analyzeSearch()"><button class="primary" onclick="analyzeSearch()">Analyser</button><button class="secondary" onclick="clearSearch()">Effacer</button></div></div>`
-}
-async function analyzeSearch(){
- const raw=document.getElementById("searchTicker")?.value||"";
- const q=normSearch(raw);
- if(!q)return clearSearch();
- let found=watchlist.find(w=>w.symbol.toUpperCase()===q)||watchlist.find(w=>searchMatchesItem(w,q));
- let sym=found?found.symbol:q;
- if(!found){
-   watchlist.unshift({symbol:sym,label:sym,sector:"Recherche"});
-   saveWatch();
- }
- searchQuery=sym;
- localStorage.setItem("search_v13",searchQuery);
- try{await loadFmpBatch([sym])}catch(e){setErr(sym,e.message||String(e))}
- renderAll();
-}
-function clearSearch(){searchQuery="";localStorage.removeItem("search_v13");renderAll()}
-
-
-function agentsPanelHTML(all){
- if(!all.length)return `<div class="card ai"><b>Agents IA</b><div class="note">Charge la watchlist pour activer les agents opportunités, marché et hors séance.</div></div>`;
- const opp=all.map(x=>({...x,opp:opportunityScore(x),p:tradingLevels(x.t),q:setupQuality(x.w.symbol,x.t)})).sort((a,b)=>b.opp-a.opp);
- const best=opp[0], avoid=opp.find(x=>x.t.sig==="Prendre profit"||x.t.risk[0]==="Élevé"), day=opp.find(x=>x.t.dayScore>=65);
- const afterMovers=all.map(x=>({x,a:getC("after",x.w.symbol)?.data})).filter(o=>o.a&&Math.abs(num(o.a.changesPercentage)||0)>0.15).sort((a,b)=>Math.abs(num(b.a.changesPercentage)||0)-Math.abs(num(a.a.changesPercentage)||0)).slice(0,4);
- const rows=opp.slice(0,5).map(x=>`<div class="agentMiniRow"><span>${x.w.symbol}</span><b>${x.p.conv}/10 · ${shortDecision(x.p.decision)}</b></div>`).join("");
- return `<div class="card ai"><b>Agents IA</b><div class="agentDash">
-  <div class="agentItem"><b>Agent opportunités</b><div class="note">${best?`${best.w.symbol} est le meilleur setup chargé. Entrée ${rangeFmt(best.p.pullLow,best.p.pullHigh)}, stop ${fmt(best.p.stop)}, objectifs ${fmt(best.p.target1)} / ${fmt(best.p.target2)}.`:"Aucun setup."}</div><div class="agentMiniList">${rows}</div></div>
-  <div class="agentItem"><b>Agent marché</b><div class="note">${marketRegime()}</div></div>
-  <div class="agentItem"><b>Agent court terme</b><div class="note">${day?`${day.w.symbol} ressort en day/swing court terme avec score day ${day.t.dayScore}/100.`:"Aucun signal court terme fort."}</div></div>
-  <div class="agentItem"><b>Agent risque</b><div class="note">${avoid?`${avoid.w.symbol} : prudence (${avoid.t.sig}, risque ${avoid.t.risk[0]}).`:"Pas d’alerte risque majeure sur les valeurs chargées."}</div></div>
-  <div class="agentItem"><b>Pré-market / hors séance</b><div class="note">${afterMovers.length?afterMovers.map(o=>`${o.x.w.symbol} ${pct(o.a.changesPercentage)} à ${fmt(o.a.price)}`).join(" · "):"Aucun mouvement hors séance notable ou endpoint indisponible sur ton plan."}</div></div>
- </div></div>`;
-}
-function focusHeroHTML(loaded){
- if(!normSearch(searchQuery)||loaded.length!==1)return "";
- const x=loaded[0], p=tradingLevels(x.t), q=setupQuality(x.w.symbol,x.t);
- return `<div class="card focusHero"><div class="small">ANALYSE ACTION IA</div><div class="row"><div><div class="bigSignal ${verdictClass(p.decision)}">${x.w.symbol} · ${shortDecision(p.decision)}</div><div class="note">${x.t.q.name||x.w.label} · ${q.action}</div></div><div class="price">${fmt(x.t.c)}${afterLineHTML(x.w.symbol,x.t)}</div></div><div class="grid"><div class="metric"><div class="l">Entrée</div><div class="v">${rangeFmt(p.pullLow,p.pullHigh)}</div></div><div class="metric"><div class="l">Stop</div><div class="v">${fmt(p.stop)}</div></div><div class="metric"><div class="l">Objectifs</div><div class="v">${fmt(p.target1)} puis ${fmt(p.target2)}</div></div></div><div class="grid"><div class="metric"><div class="l">Conviction</div><div class="v">${p.conv}/10</div></div><div class="metric"><div class="l">Probabilité IA</div><div class="v ${q.label[1]}">${q.prob}/100</div></div><div class="metric"><div class="l">R/R</div><div class="v">${isFinite(p.rr1)?p.rr1.toFixed(1):"-"}/${isFinite(p.rr2)?p.rr2.toFixed(1):"-"}</div></div></div></div>`;
-}
 function filteredList(l){if(currentFilter==="buy")return l.filter(x=>["Zone achat","Surveiller achat","Breakout","Day trade possible"].includes(x.t.sig));if(currentFilter==="sell")return l.filter(x=>x.t.sig==="Prendre profit");if(currentFilter==="day")return l.filter(x=>x.t.dayScore>=60||x.t.sig==="Day trade possible");if(currentFilter==="strong")return l.filter(x=>x.t.score>=70);return l}
-function renderScanner(){const all=rankLoaded(),searched=searchFilteredRows(all),loaded=filteredList(searched),errors=allErrors();const single=normSearch(searchQuery)&&loaded.length===1;document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadAllFull()">Scanner rapide FMP</button><button class="secondary" onclick="refreshLoaded()">Refresh FMP</button><button class="secondary" onclick="forcePremarket()">Pré-market ciblé</button></div>${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:""}</div>${searchPanelHTML()}${agentsPanelHTML(all)}<div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div>${normSearch(searchQuery)?`<div class="card ai" style="margin-bottom:12px"><b>Analyse en focus : ${searchQuery}</b><div class="note">Une seule action est affichée en largeur. Clique sur “Effacer” pour revenir à toute la watchlist.</div></div>`:""}${focusHeroHTML(loaded)}<div class="stockGrid ${compact?'compact':''} ${single?'singleFocus':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète pour “${searchQuery||"la recherche"}”.</b><div class="note">Clique sur “Analyser” ou sur “Scanner rapide FMP”.</div></div>`}</div></div></div>`}
-function summaryAI(l){if(!l.length)return"Charge quelques actions pour obtenir un classement IA.";const top=l[0],sell=l.find(x=>x.t.sig==="Prendre profit"),day=l.find(x=>x.t.dayScore>=68),buy=l.find(x=>["Zone achat","Breakout"].includes(x.t.sig));let s=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). `;if(day)s+=`Meilleur setup day : ${day.w.symbol}. `;if(buy)s+=`Opportunité achat/cassure : ${buy.w.symbol} — ${buy.t.sig}. `;if(sell)s+=`Prise de profit à surveiller : ${sell.w.symbol}. `;s+=`Données quote: scan rapide FMP. Prix hors séance prioritaire si disponible. Analyse détaillée Twelve Data uniquement sur demande. ${marketRegime()} Utilise Force refresh live si Investing affiche un prix différent.`;return s}
+function renderScanner(){const all=rankLoaded(),loaded=filteredList(all),errors=allErrors();document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadAllFull()">Scanner rapide FMP</button><button class="secondary" onclick="loadNextFull()">Charger prochaine</button><button class="secondary" onclick="refreshLoaded()">Force refresh live</button></div>${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:""}</div><div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div><div class="stockGrid ${compact?'compact':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine”.</div></div>`}</div></div></div>`}
+function summaryAI(l){if(!l.length)return"Charge quelques actions pour obtenir un classement IA.";const top=l[0],sell=l.find(x=>x.t.sig==="Prendre profit"),day=l.find(x=>x.t.dayScore>=68),buy=l.find(x=>["Zone achat","Breakout"].includes(x.t.sig));let s=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). `;if(day)s+=`Meilleur setup day : ${day.w.symbol}. `;if(buy)s+=`Opportunité achat/cassure : ${buy.w.symbol} — ${buy.t.sig}. `;if(sell)s+=`Prise de profit à surveiller : ${sell.w.symbol}. `;s+=`Données quote: scan rapide FMP. Analyse détaillée Twelve Data uniquement sur demande. ${marketRegime()} Utilise Force refresh live si Investing affiche un prix différent.`;return s}
 function rankingTable(l){if(!l.length)return`<div class="note">Charge quelques actions.</div>`;return`<table class="table"><tr><th>Ticker</th><th>Signal</th><th>Entrée</th><th>Conv.</th></tr>${l.slice(0,10).map(x=>{const p=tradingLevels(x.t);return`<tr><td>${x.w.symbol}</td><td>${x.t.sig}</td><td>${rangeFmt(p.pullLow,p.pullHigh)}</td><td>${p.conv}/10</td></tr>`}).join("")}</table>`}
-function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span>${afterLineHTML(w.symbol,t)}</div></div>${afterWarningHTML(w.symbol)}<div class="note"><b>Analyse TF:</b> ${multiTF(w.symbol).label}<br>D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="actionBox"><b>Action IA</b><div class="note">${nextAction(w.symbol,t)}</div></div>${planHTML(t)}<div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Analyse détaillée ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
-async function loadNextFull(){alert("En V15.3, le chargement détaillé Twelve Data est désactivé pour éviter les erreurs de crédits. Utilise Scanner rapide FMP ou Pré-market ciblé.");}
-async function loadFull(s,force=true){try{clearErr(s);await loadFmpBatch([s]);await loadFmpAftermarket(s,true)}catch(e){setErr(s,e.message||String(e))}renderAll()}
+function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span></div></div><div class="note"><b>Analyse TF:</b> ${multiTF(w.symbol).label}<br>D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="actionBox"><b>Action IA</b><div class="note">${nextAction(w.symbol,t)}</div></div>${planHTML(t)}<div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Analyse détaillée ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
+async function loadNextFull(){const n=watchlist.find(w=>!technical(w.symbol)&&!getErr(w.symbol));if(!n){alert("Toutes les actions possibles sont chargées ou en erreur.");return}await loadFull(n.symbol,true)}
+async function loadFull(s,force=true){try{clearErr(s);await Promise.allSettled([loadQuote(s,force),loadDaily(s,false),loadIntraday(s,force),loadHourly(s,force)]).then(res=>{const bad=res.find(x=>x.status==="rejected");if(bad&&res.filter(x=>x.status==="fulfilled").length<2)throw bad.reason})}catch(e){setErr(s,e.message||String(e))}renderAll()}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
-async function loadManyFull(syms,{force=false,label="Scan"}={}){if(!syms.length)return alert("Aucune action à charger.");scanState={active:true,done:0,total:syms.length,label};renderAll();const batchSize=3;for(let i=0;i<syms.length;i+=batchSize){const batch=syms.slice(i,i+batchSize);await Promise.all(batch.map(async s=>{try{clearErr(s);await loadFmpBatch([s]);await loadFmpAftermarket(s,true)}catch(e){setErr(s,e.message||String(e))}finally{scanState.done++;renderScanner()}}));await wait(350)}scanState.active=false;renderAll()}
+async function loadManyFull(syms,{force=false,label="Scan"}={}){if(!syms.length)return alert("Aucune action à charger.");scanState={active:true,done:0,total:syms.length,label};renderAll();const batchSize=3;for(let i=0;i<syms.length;i+=batchSize){const batch=syms.slice(i,i+batchSize);await Promise.all(batch.map(async s=>{try{clearErr(s);await Promise.allSettled([loadQuote(s,force),loadDaily(s,false),loadIntraday(s,force),loadHourly(s,force)]).then(res=>{const ok=res.filter(x=>x.status==="fulfilled").length;if(ok<2){const bad=res.find(x=>x.status==="rejected");if(bad)throw bad.reason}})}catch(e){setErr(s,e.message||String(e))}finally{scanState.done++;renderScanner()}}));await wait(350)}scanState.active=false;renderAll()}
 async function loadAllFull(){return scanFastFmp({force:false})}
 async function refreshLoaded(){return scanFastFmp({force:true})}
-async function forcePremarket(){let s=normSearch(searchQuery);if(!s){s=prompt("Ticker à vérifier en pré-market / hors séance (ex: AVGO, NVDA, NFLX) :","");s=normSearch(s||"");}if(!s)return;scanState={active:true,done:0,total:1,label:"Pré-market ciblé "+s};renderAll();try{clearErr(s);await loadFmpBatch([s]);await loadFmpAftermarket(s,true);scanState.done=1;}catch(e){setErr(s,e.message||String(e))}scanState.active=false;searchQuery=s;localStorage.setItem("search_v13",s);renderAll()}
-function setFilter(f){currentFilter=f;renderScanner()}function addWatch(){const v=document.getElementById("newSymbol").value.trim().toUpperCase();if(!v)return;if(watchlist.some(w=>w.symbol===v))return alert("Déjà dans la watchlist.");watchlist.push({symbol:v,label:v,sector:"Custom"});saveWatch();renderScanner()}function removeWatch(s){watchlist=watchlist.filter(w=>w.symbol!==s);["quote","daily","intra","hourly","after","after_yahoo","err"].forEach(t=>localStorage.removeItem(ck(t,s)));saveWatch();renderAll()}function resetCache(){if(!confirm("Vider les données chargées ?"))return;Object.keys(localStorage).filter(k=>k.startsWith("quote_")||k.startsWith("daily_")||k.startsWith("intra_")||k.startsWith("hourly_")||k.startsWith("after_")||k.startsWith("after_yahoo_")||k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));renderAll()}
+function setFilter(f){currentFilter=f;renderScanner()}function addWatch(){const v=document.getElementById("newSymbol").value.trim().toUpperCase();if(!v)return;if(watchlist.some(w=>w.symbol===v))return alert("Déjà dans la watchlist.");watchlist.push({symbol:v,label:v,sector:"Custom"});saveWatch();renderScanner()}function removeWatch(s){watchlist=watchlist.filter(w=>w.symbol!==s);["quote","daily","intra","err"].forEach(t=>localStorage.removeItem(ck(t,s)));saveWatch();renderAll()}function resetCache(){if(!confirm("Vider les données chargées ?"))return;Object.keys(localStorage).filter(k=>k.startsWith("quote_")||k.startsWith("daily_")||k.startsWith("intra_")||k.startsWith("hourly_")||k.startsWith("err_")).forEach(k=>localStorage.removeItem(k));renderAll()}
 function renderDay(){const list=rankLoaded().filter(x=>x.t.dayScore>=55||["Day trade possible","Breakout","Prendre profit"].includes(x.t.sig)).sort((a,b)=>b.t.dayScore-a.t.dayScore);document.getElementById("daytrading").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><b>Mode Day Trading</b><div class="note">Score day basé sur RSI 5min, gap, ATR, variation jour. Refresh live conseillé avant ordre.</div></div></div><div class="stockGrid ${compact?'compact':''}">${list.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card">Aucun setup day trading clair.</div>`}</div></div>`}
 
 function chartReadingHTML(sym){
