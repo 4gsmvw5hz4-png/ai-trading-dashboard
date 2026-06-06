@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V15.5 Hors séance</title>
+<title>AI Trading Cockpit V15.6 Hors séance</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -126,7 +126,7 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V15.5 Hors séance</div><div class="title">Trading Scanner</div><div class="small">Scan FMP stable + prix hors séance Yahoo/FMP si disponible</div></div>
+  <div><div class="small">AI Trading Cockpit V15.6 Hors séance</div><div class="title">Trading Scanner</div><div class="small">Scan FMP stable + hors séance FMP + saisie manuelle</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -219,12 +219,24 @@ async function fetchYahooExtended(sym){
 }
 async function fetchFmpExtended(sym){
  if(!isFmpSupported(sym))return null;
- const tries=[`/api/v4/pre-post-market/${encodeURIComponent(sym)}`,`/stable/aftermarket-quote?symbol=${encodeURIComponent(sym)}`];
+ const enc=encodeURIComponent(sym);
+ const tries=[
+   `/stable/aftermarket-quote?symbol=${enc}`,
+   `/stable/aftermarket-trade?symbol=${enc}`,
+   `/stable/batch-aftermarket-quote?symbols=${enc}`,
+   `/stable/batch-aftermarket-trade?symbols=${enc}`,
+   `/api/v4/pre-post-market/${enc}`
+ ];
  for(const p of tries){
    try{
-     const j=await fmpFetch(p); const x=Array.isArray(j)?j[0]:j;
-     const px=num(x?.price)||num(x?.bidPrice)||num(x?.askPrice)||num(x?.lastSalePrice);
-     if(px)return {price:px,label:"Hors séance",time:"FMP"};
+     const j=await fmpFetch(p);
+     const x=Array.isArray(j)?j.find(r=>(r.symbol||r.ticker||'').toUpperCase()===sym.toUpperCase())||j[0]:j;
+     const bid=num(x?.bidPrice)||num(x?.bid)||num(x?.bid_price);
+     const ask=num(x?.askPrice)||num(x?.ask)||num(x?.ask_price);
+     let px=num(x?.price)||num(x?.lastSalePrice)||num(x?.last)||num(x?.lastPrice)||num(x?.tradePrice)||num(x?.lastTradePrice)||num(x?.afterHoursPrice)||num(x?.afterMarketPrice)||num(x?.postMarketPrice)||num(x?.preMarketPrice)||num(x?.premarketPrice);
+     if(!px && bid && ask) px=(bid+ask)/2;
+     if(!px) px=bid||ask;
+     if(px)return {price:px,label:"Hors séance FMP",time:"FMP"};
    }catch(e){}
  }
  return null;
@@ -245,6 +257,38 @@ function extendedHTML(q){
 function extendedAlertHTML(q){
  if(!q?.extended_price||Math.abs(num(q.extended_percent)||0)<3)return "";
  return `<div class="extAlert">⚠ Mouvement hors séance important : ${q.extended_label||'hors séance'} ${pct(q.extended_percent)}. L’agent utilise ce prix.</div>`;
+}
+function applyManualExtended(){
+ const s=(document.getElementById("manualExtSymbol")?.value||"").trim().toUpperCase();
+ const p=num((document.getElementById("manualExtPrice")?.value||"").replace(",","."));
+ if(!s||!p)return alert("Entre un ticker et un prix hors séance, ex: AVGO / 385.08");
+ let q=getC("quote",s)?.data;
+ if(!q){ q={symbol:s,name:s,regular_close:p,close:p,previous_close:p,percent_change:0,change:0,high:p,low:p,open:p,source:"MANUAL"}; }
+ const base=num(q.regular_close)||num(q.close)||num(q.previous_close)||p;
+ q.regular_close=base;
+ const merged=mergeExtendedQuote(q,{price:p,label:"Hors séance manuel",time:"Manuel"});
+ setC("quote",s,merged); clearErr(s);
+ if(!watchlist.some(w=>w.symbol===s)){watchlist.unshift({symbol:s,label:s,sector:"Recherche"});saveWatch();}
+ searchQuery=s; localStorage.setItem("search_v13",s);
+ renderAll();
+}
+function clearManualExtended(){
+ const s=(document.getElementById("manualExtSymbol")?.value||searchQuery||"").trim().toUpperCase();
+ if(!s)return alert("Entre le ticker à réinitialiser.");
+ const c=getC("quote",s); if(!c?.data)return;
+ const q=c.data;
+ if(q.regular_close){ q.close=q.regular_close; q.percent_change=q.previous_close?((q.close-q.previous_close)/q.previous_close*100):q.percent_change; q.change=q.previous_close?q.close-q.previous_close:q.change; }
+ delete q.extended_price; delete q.extended_change; delete q.extended_percent; delete q.extended_vs_prev; delete q.extended_label; delete q.extended_time;
+ setC("quote",s,q); renderAll();
+}
+async function forceExtendedOne(){
+ const s=(document.getElementById("manualExtSymbol")?.value||searchQuery||"").trim().toUpperCase();
+ if(!s)return alert("Entre un ticker, ex: AVGO");
+ const c=getC("quote",s); if(!c?.data) await loadFmpBatch([s]);
+ const q=getC("quote",s)?.data; if(!q)return alert("Aucune cotation de base pour "+s);
+ const ext=(await fetchFmpExtended(s)) || (await fetchYahooExtended(s));
+ if(!ext)return alert("Aucun prix hors séance automatique trouvé. Tu peux le saisir manuellement depuis Investing.");
+ setC("quote",s,mergeExtendedQuote(q,ext)); searchQuery=s; localStorage.setItem("search_v13",s); renderAll();
 }
 async function loadFmpBatch(syms){
  const supported=syms.filter(isFmpSupported);
@@ -442,7 +486,7 @@ function marketRegime(){
 }
 
 function filteredList(l){if(currentFilter==="buy")return l.filter(x=>["Zone achat","Surveiller achat","Breakout","Day trade possible"].includes(x.t.sig));if(currentFilter==="sell")return l.filter(x=>x.t.sig==="Prendre profit");if(currentFilter==="day")return l.filter(x=>x.t.dayScore>=60||x.t.sig==="Day trade possible");if(currentFilter==="strong")return l.filter(x=>x.t.score>=70);return l}
-function renderScanner(){const all=rankLoaded(),loaded=filteredList(all),errors=allErrors();document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadAllFull()">Scanner rapide FMP</button><button class="secondary" onclick="loadNextFull()">Charger prochaine</button><button class="secondary" onclick="refreshLoaded()">Force refresh live</button></div>${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:""}</div><div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div><div class="stockGrid ${compact?'compact':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine”.</div></div>`}</div></div></div>`}
+function renderScanner(){const all=rankLoaded(),loaded=filteredList(all),errors=allErrors();document.getElementById("scanner").innerHTML=`<div class="layout"><div class="side"><div class="card ai"><div class="small">Résumé IA</div><div class="note">${summaryAI(all)}</div><div class="toolbar"><button class="primary" onclick="loadAllFull()">Scanner rapide FMP</button><button class="secondary" onclick="loadNextFull()">Charger prochaine</button><button class="secondary" onclick="refreshLoaded()">Force refresh live</button></div>${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:""}</div><div class="card"><b>Prix hors séance</b><div class="kv">Si FMP/Yahoo ne donne pas le pré-market, copie le prix Investing ici. L’agent utilisera ce prix.</div><input id="manualExtSymbol" placeholder="Ticker ex: AVGO" value="${searchQuery||''}"><input id="manualExtPrice" placeholder="Prix hors séance ex: 385.08"><button class="secondary" onclick="forceExtendedOne()">Chercher hors séance auto</button><button class="primary" onclick="applyManualExtended()">Appliquer prix hors séance</button><button class="danger" onclick="clearManualExtended()">Effacer hors séance</button></div><div class="card"><b>Watchlist modifiable</b><div class="kv">Prix avec cache 30 sec. Chaque carte affiche High/Low/Open du jour et l’heure de MAJ.</div><div class="chips">${watchlist.map(w=>`<span class="chip">${w.symbol}<button onclick="removeWatch('${w.symbol.replace("'","\\'")}')">×</button></span>`).join("")}</div><hr><input id="newSymbol" placeholder="Ajouter ticker ex: META, AMZN, TSLA, AAPL"><button class="secondary" onclick="addWatch()">Ajouter</button><button class="danger" onclick="resetCache()">Vider cache données</button></div><div class="card"><b>Classement rapide</b>${rankingTable(all)}</div>${errors.length?`<div class="card"><b>Erreurs ignorées</b><div class="warn">${errors.map(x=>`${x.w.symbol}: ${x.err.msg}`).join("<br>")}</div></div>`:""}</div><div><div class="filterbar"><button class="secondary" onclick="setFilter('all')">Tous</button><button class="secondary" onclick="setFilter('buy')">Achat</button><button class="secondary" onclick="setFilter('sell')">Vente</button><button class="secondary" onclick="setFilter('day')">Day</button><button class="secondary" onclick="setFilter('strong')">Score 70+</button></div><div class="stockGrid ${compact?'compact':''}">${loaded.map(x=>cardHTML(x.w,x.t)).join("")||`<div class="card"><b>Aucune donnée complète.</b><div class="note">Clique sur “Charger prochaine”.</div></div>`}</div></div></div>`}
 function summaryAI(l){if(!l.length)return"Charge quelques actions pour obtenir un classement IA.";const top=l[0],sell=l.find(x=>x.t.sig==="Prendre profit"),day=l.find(x=>x.t.dayScore>=68),buy=l.find(x=>["Zone achat","Breakout"].includes(x.t.sig));let s=`Meilleur score global : ${top.w.symbol} (${top.t.score}/100 swing, ${top.t.dayScore}/100 day). `;if(day)s+=`Meilleur setup day : ${day.w.symbol}. `;if(buy)s+=`Opportunité achat/cassure : ${buy.w.symbol} — ${buy.t.sig}. `;if(sell)s+=`Prise de profit à surveiller : ${sell.w.symbol}. `;s+=`Données quote: scan rapide FMP. Analyse détaillée Twelve Data uniquement sur demande. ${marketRegime()} Utilise Force refresh live si Investing affiche un prix différent.`;return s}
 function rankingTable(l){if(!l.length)return`<div class="note">Charge quelques actions.</div>`;return`<table class="table"><tr><th>Ticker</th><th>Signal</th><th>Entrée</th><th>Conv.</th></tr>${l.slice(0,10).map(x=>{const p=tradingLevels(x.t);return`<tr><td>${x.w.symbol}</td><td>${x.t.sig}</td><td>${rangeFmt(p.pullLow,p.pullHigh)}</td><td>${p.conv}/10</td></tr>`}).join("")}</table>`}
 function cardHTML(w,t){return`<div class="card"><div class="row"><div><span class="ticker">${w.symbol}</span> <span class="badge ${t.tone}">${t.sig}</span><div class="name">${t.q.name||w.label} · ${w.sector}</div></div><div class="price">${fmt(t.c)}<br><span class="${cls(t.day)}">${pct(t.day)}</span>${extendedHTML(t.q)}</div></div>${extendedAlertHTML(t.q)}<div class="note"><b>Analyse TF:</b> ${multiTF(w.symbol).label}<br>D ${multiTF(w.symbol).daily??"-"} / 1h ${multiTF(w.symbol).hourly??"-"} / 5m ${multiTF(w.symbol).m5??"-"}<br>${detectSetups(w.symbol,t).map(s=>`<span class="pill">${s}</span>`).join("")}</div><div class="actionBox"><b>Action IA</b><div class="note">${nextAction(w.symbol,t)}</div></div>${planHTML(t)}<div class="grid"><div class="metric"><div class="l">High jour</div><div class="v">${fmt(num(t.q.high))}</div></div><div class="metric"><div class="l">Low jour</div><div class="v">${fmt(num(t.q.low))}</div></div><div class="metric"><div class="l">Open</div><div class="v">${fmt(num(t.q.open))}</div></div></div><div class="grid"><div class="metric"><div class="l">RSI D</div><div class="v">${t.rsi?Math.round(t.rsi):"-"}</div></div><div class="metric"><div class="l">RSI 5m</div><div class="v">${t.rsi5?Math.round(t.rsi5):"-"}</div></div><div class="metric"><div class="l">Swing/Day</div><div class="v">${t.score}/${t.dayScore}</div></div></div><div class="grid extra"><div class="metric"><div class="l">SMA20</div><div class="v">${fmt(t.s20)}</div></div><div class="metric"><div class="l">SMA50</div><div class="v">${fmt(t.s50)}</div></div><div class="metric"><div class="l">SMA200</div><div class="v">${fmt(t.s200)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Support</div><div class="v">${fmt(t.sup)}</div></div><div class="metric"><div class="l">Résistance</div><div class="v">${fmt(t.res)}</div></div><div class="metric"><div class="l">ATR</div><div class="v">${fmt(t.atr)}</div></div></div><div class="grid extra"><div class="metric"><div class="l">Gap</div><div class="v">${t.gap!==null?pct(t.gap):"-"}</div></div><div class="metric"><div class="l">Risque</div><div class="v ${t.risk[1]}">${t.risk[0]}</div></div><div class="metric"><div class="l">MACD</div><div class="v">${t.macd?Number(t.macd).toFixed(2):"-"}</div></div></div><div class="grid2 extra"><div class="metric"><div class="l">Tendance</div><div class="v">${t.tr}</div></div><div class="metric"><div class="l">Volume</div><div class="v">${t.vol}</div></div></div><div class="progress"><div class="bar" style="width:${Math.max(t.score,t.dayScore)}%"></div></div><div class="note"><b>Plan:</b> ${t.plan}<br>${t.advice}<br><span class="muted">MAJ prix : ${lastUpdate(w.symbol)} · âge donnée : ${dataAge(w.symbol)}</span></div><button class="secondary" onclick="loadFull('${w.symbol}')">Analyse détaillée ${w.symbol}</button><button class="secondary" onclick="openChart('${w.symbol}')">Voir graphique</button></div>`}
