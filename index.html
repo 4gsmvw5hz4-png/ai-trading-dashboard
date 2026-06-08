@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Trading Cockpit V18.1 Agents Marché</title>
+<title>AI Trading Cockpit V18.2 Agents Marché</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#05070a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -143,7 +143,7 @@ hr{border:0;border-top:1px solid rgba(255,255,255,.1);margin:13px 0}.kv{font-siz
 <body>
 <div class="app">
 <header class="top">
-  <div><div class="small">AI Trading Cockpit V18.1 Agents Marché</div><div class="title">Trading Scanner</div><div class="small">Scan FMP stable + hors séance FMP + saisie manuelle</div></div>
+  <div><div class="small">AI Trading Cockpit V18.2 Agents Marché</div><div class="title">Trading Scanner</div><div class="small">Scan FMP stable + hors séance FMP + saisie manuelle</div></div>
   <div class="actions"><button class="btn" onclick="toggleCompact()">Vue compacte</button><button class="apiBtn" onclick="setApiKey()">API</button></div>
 </header>
 <section id="scanner"></section>
@@ -697,6 +697,108 @@ function addTrade(){const j=journal();j.unshift({date:new Date().toLocaleString(
 function delTrade(i){const j=journal();j.splice(i,1);saveJournal(j);renderJournal()}
 
 function show(id,btn){["scanner","daytrading","opportunities","charts","heatmap","portfolio","copilot","journal","alerts"].forEach(x=>document.getElementById(x).classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));btn.classList.add("active");if(id==="daytrading")renderDay();if(id==="charts")renderCharts();if(id==="opportunities")renderOpportunities();if(id==="heatmap")renderHeatmap();if(id==="portfolio")renderPortfolio();if(id==="copilot")renderCopilot();if(id==="journal")renderJournal();if(id==="alerts")renderAlerts()}
+
+
+/* ===================== V18.2 FIX UNIVERS RÉEL =====================
+   Objectif : l'agent marché doit utiliser MARKET_UNIVERSE, pas seulement la watchlist.
+   Corrige aussi l'appel batch FMP en gardant les virgules dans l'URL. */
+async function loadFmpBatch(syms){
+ const supported=[...new Set(syms.filter(isFmpSupported))];
+ const unsupported=syms.filter(s=>!isFmpSupported(s));
+ unsupported.forEach(s=>setErr(s,"FMP rapide ne gère pas ce symbole."));
+ if(!supported.length)return [];
+ const chunks=[];
+ for(let i=0;i<supported.length;i+=25)chunks.push(supported.slice(i,i+25));
+ const out=[];
+ for(const ch of chunks){
+   // Important : ne PAS encoder la virgule, sinon FMP peut refuser le batch.
+   const data=await fmpFetch(`/api/v3/quote/${ch.join(',')}`);
+   (Array.isArray(data)?data:[]).forEach(x=>{
+     const q=normalizeFmpQuote(x);
+     if(q.close){setC("quote",q.symbol,q);clearErr(q.symbol);out.push(q)}
+   });
+ }
+ return out;
+}
+function marketLoadedItems(){return marketUniverseItems().filter(x=>x.t)}
+function marketBySector(sectorWords,limit=6){
+ const words=Array.isArray(sectorWords)?sectorWords:[sectorWords];
+ return marketLoadedItems()
+   .filter(x=>!['SPY','QQQ','IWM','DIA','TLT','GLD','SLV'].includes(x.w.symbol))
+   .filter(x=>words.some(w=>(x.w.sector||'').toLowerCase().includes(String(w).toLowerCase())))
+   .map(x=>({...x,mScore:marketScore(x)}))
+   .sort((a,b)=>b.mScore-a.mScore)
+   .slice(0,limit);
+}
+function topMarketIdeas(n=10,{preferNew=true}={}){
+ const base=marketLoadedItems()
+   .filter(x=>!['SPY','QQQ','IWM','DIA','TLT','GLD','SLV'].includes(x.w.symbol))
+   .map(x=>({...x,mScore:marketScore(x)}))
+   .sort((a,b)=>b.mScore-a.mScore);
+ if(!preferNew)return base.slice(0,n);
+ const fresh=base.filter(x=>!x.already);
+ const picked=[...fresh.slice(0,n)];
+ if(picked.length<n){base.forEach(x=>{if(picked.length<n&&!picked.some(y=>y.w.symbol===x.w.symbol))picked.push(x)})}
+ return picked.slice(0,n);
+}
+function marketDiagnosticsHTML(){
+ const loaded=marketLoadedItems(), fresh=loaded.filter(x=>!x.already), known=loaded.filter(x=>x.already);
+ const sample=fresh.slice(0,12).map(x=>x.w.symbol).join(', ');
+ return `<div class="note">Diagnostic V18.2 : univers total <b>${MARKET_UNIVERSE.length}</b> · chargées <b>${loaded.length}</b> · hors watchlist <b>${fresh.length}</b> · déjà suivies <b>${known.length}</b>${sample?`<br>Nouvelles valeurs détectées : ${sample}`:''}</div>`;
+}
+function categoryCards(title,arr,empty='Aucune opportunité claire dans cette catégorie.'){
+ return `<div class="card"><b>${title}</b><div class="tradeCards">${arr.length?arr.map((x,i)=>tradeCardHTML(x,i)).join(''):`<div class="note">${empty}</div>`}</div></div>`;
+}
+function marketAgentsHTML(){
+ const loaded=marketLoadedItems();
+ const ready=marketScanReady||loaded.length>10;
+ const regime=marketRegimeAgent();
+ const ideas=topMarketIdeas(10,{preferNew:true});
+ const best=ideas[0];
+ const semi=marketBySector(['semi','ia'],6);
+ const software=marketBySector(['software','tech'],6);
+ const growth=marketBySector(['croissance','conso','finance'],6);
+ const day=topMarketIdeas(80,{preferNew:false}).filter(x=>x.t.dayScore>=60).slice(0,6);
+ const swing=topMarketIdeas(80,{preferNew:false}).filter(x=>x.t.score>=65).slice(0,6);
+ return `<div class="card ai"><b>Agent opportunités marché V18.2</b>
+ <div class="note">Cette version scanne un <b>univers indépendant de ta watchlist</b>. Le Top 10 doit donc faire apparaître aussi des actions que tu ne suis pas encore.</div>
+ <div class="toolbar"><button class="primary" onclick="scanMarketUniverse()">Scanner marché V18.2</button><button class="secondary" onclick="addTopMarketToWatchlist()">Ajouter Top 10</button></div>
+ <div class="agentInputs"><input id="agentCapital" placeholder="Capital ex: 10000" value="${agentCapital()}"><input id="agentRiskPct" placeholder="Risque % ex: 1" value="${agentRiskPct()}"></div><button class="secondary" onclick="saveAgentParams()">Sauver capital / risque</button>
+ ${scanState.active?`<div class="scanProgress"><div><b>${scanState.label}</b> ${scanState.done}/${scanState.total}</div><div class="bar"><span style="width:${scanState.total?Math.round(scanState.done/scanState.total*100):0}%"></span></div></div>`:''}
+ ${ready?`<div class="regimeBox"><div class="regimeItem"><b>Régime</b><span>${regime.score}/100</span></div><div class="regimeItem"><b>Mode</b><span>${regime.score>=70?'Agressif':regime.score>=50?'Sélectif':'Défensif'}</span></div><div class="regimeItem"><b>Univers chargé</b><span>${loaded.length}</span></div></div>
+ <div class="note"><b>Conclusion marché :</b> ${regime.mode}</div>${marketDiagnosticsHTML()}
+ ${best?`<div class="agentBest"><b>Si c’était mon argent aujourd’hui</b><div class="note">Je regarderais d’abord <b>${best.w.symbol}</b> (${best.w.sector}). Entrée ${rangeFmt(agentTradeDecision(best).p.pullLow,agentTradeDecision(best).p.pullHigh)}, stop ${fmt(agentTradeDecision(best).p.stop)}, objectifs ${fmt(agentTradeDecision(best).p.target1)} puis ${fmt(agentTradeDecision(best).p.target2)}. Taille indicative : ${positionSizeHTML(best)}.</div></div>`:''}
+ ${categoryCards('🏆 Top 10 hors watchlist',ideas)}
+ ${categoryCards('⚡ Top day trade',day)}
+ ${categoryCards('📈 Top swing',swing)}
+ ${categoryCards('🧠 IA / Semi-conducteurs',semi)}
+ ${categoryCards('☁️ Software / Cloud / Cybersécurité',software)}
+ ${categoryCards('🔥 Croissance / Fintech / Conso',growth)}
+ `:`<div class="note">Clique sur <b>Scanner marché V18.2</b>. Si après le scan tu vois encore 0 valeur hors watchlist, c’est que l’appel FMP batch ne charge pas l’univers et il faudra regarder la console.</div>`}
+ </div>`;
+}
+async function scanMarketUniverse(){
+ const syms=[...new Set(MARKET_UNIVERSE)];
+ scanState={active:true,done:0,total:syms.length,label:'Agent marché V18.2'};renderAll();
+ let ok=0, errors=[];
+ const chunks=[];for(let i=0;i<syms.length;i+=25)chunks.push(syms.slice(i,i+25));
+ for(const ch of chunks){
+   try{const res=await loadFmpBatch(ch);ok+=res.length;}catch(e){errors.push(e.message||String(e));}
+   scanState.done=Math.min(syms.length,scanState.done+ch.length);renderScanner();await wait(180);
+ }
+ marketScanReady=true;localStorage.setItem('marketScanReady_v18_1','1');
+ scanState.active=false;renderAll();
+ if(ok===0)alert('Aucune donnée marché chargée. Erreur FMP probable : '+(errors[0]||'inconnue'));
+}
+function addTopMarketToWatchlist(){
+ const ideas=topMarketIdeas(10,{preferNew:true});
+ if(!ideas.length){alert('Lance d’abord Scanner marché V18.2. Actuellement aucune idée marché chargée.');return}
+ let added=0,names=[];
+ ideas.forEach(x=>{if(!watchlist.some(w=>w.symbol===x.w.symbol)){watchlist.push({symbol:x.w.symbol,label:x.w.label||x.w.symbol,sector:x.w.sector||marketSector(x.w.symbol)});added++;names.push(x.w.symbol)}});
+ saveWatch();renderAll();alert(added?`${added} nouvelles valeurs ajoutées : ${names.join(', ')}`:`Aucune nouvelle valeur ajoutée. Top chargé : ${ideas.map(x=>x.w.symbol).join(', ')}`);
+}
+/* =================== FIN V18.2 FIX UNIVERS RÉEL =================== */
+
 function renderAll(){renderScanner();renderDay();renderOpportunities();renderCharts();renderHeatmap();renderPortfolio();renderCopilot();renderJournal();renderAlerts()}renderAll();
 </script>
 </body>
